@@ -1,0 +1,28 @@
+version: 1
+disable_existing_loggers: False
+formatters:
+    simple: 
+        format: "%(asctime)s %(filename)s[line:%(lineno)d] %(levelname)s %(message)s"
+handlers: 
+    console:
+        class: logging.StreamHandler
+        level: DEBUG
+        formatter: simple
+    info_file_handler:
+        class: logging.handlers.RotatingFileHandler
+        level: INFO
+        formatter: simple
+        filename: BearCatOMSv2.log
+        maxBytes: 1024
+        backupCount: 5
+        encoding: "utf8"
+
+loggers:
+    fileLogger:
+        level: DEBUG
+        handlers: [console, info_file_handler]
+        propagate: no
+roots:
+    level: DEBUG
+    handlers: [console]
+    propagate: true
