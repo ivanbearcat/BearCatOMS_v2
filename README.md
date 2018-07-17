@@ -5,10 +5,10 @@ gcc
 python-devel  
 
 ###pip:  
-celery==4.2.0
-PyMySQL==0.9.2
-django==2.0.6
-PyYAML==3.12
+celery==4.2.0  
+PyMySQL==0.9.2  
+django==2.0.6  
+PyYAML==3.12  
 gevent  
 paramiko  
 pexpect  
