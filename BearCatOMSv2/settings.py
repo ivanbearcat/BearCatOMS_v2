@@ -27,8 +27,7 @@ SECRET_KEY = '4)3!9d)%ydk^vfm**1srr*&&e5%bqkn##lh3nue#!np#d5hmt3'
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = ['192.168.120.251']
-
+ALLOWED_HOSTS = ['*']
 
 # Application definition
 
@@ -39,6 +38,11 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
+    'werkzeug_debugger_runserver',
+    'django_extensions',
+    'server_info',
+    'operation',
+    'audit',
 ]
 
 MIDDLEWARE = [
@@ -146,10 +150,9 @@ logger = logging.getLogger("fileLogger")
 
 
 
+
 # celery settings
 CELERY_BROKER_URL = 'redis://localhost'
 CELERY_ACCEPT_CONTENT = ['json']
 CELERY_RESULT_BACKEND = 'redis://localhost'
 CELERY_TASK_SERIALIZER = 'json'
-
-
