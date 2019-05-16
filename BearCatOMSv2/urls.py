@@ -23,7 +23,8 @@ from server_info.views import *
 from operation.views import *
 from monitor.views import *
 from audit.views import *
-from java_info.views import *
+from task_schedule.views import *
+from ansiable.views import *
 
 
 urlpatterns = [
@@ -55,5 +56,18 @@ urlpatterns = [
     url(r'^audit_log/', audit_log),
     url(r'^audit_get_data/', audit_get_data),
     url(r'^audit_log_data/', audit_log_data),
-    url(r'^java_info_table/', java_info_table),
+    url(r'^task_table/', task_table),
+    url(r'^task_table_data/', task_table_data),
+    url(r'^task_table_save/', task_table_save),
+    url(r'^task_table_del/', task_table_del),
+    url(r'^task_table_run/', task_table_run),
+    url(r'^task_table_kill/', task_table_kill),
+    url(r'^log_web_socket/', log_web_socket),
+    url(r'^ansiable_playbook/', ansiable_playbook),
+    url(r'^ansiable_playbook_data/', ansiable_playbook_data),
+    url(r'^ansiable_playbook_run/', ansiable_playbook_run),
+    url(r'^ansiable_playbook_config_edit/', ansiable_playbook_config_edit),
+    url(r'^ansiable_playbook_change_branch/', ansiable_playbook_change_branch),
+    url(r'^ansiable_playbook_log/', ansiable_playbook_log),
+    url(r'^ansiable_playbook_log_data/', ansiable_playbook_log_data),
 ]

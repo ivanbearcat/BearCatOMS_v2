@@ -1,0 +1,503 @@
+{% extends 'public/home.html' %}
+{% block body %}
+
+<div class="portlet box grey tasks-widget">
+    <div class="portlet-title">
+        <div class="caption">
+            <i class="fa fa-globe"></i>{{ page_name2 }}
+        </div>
+    </div>
+    <div class="portlet-body">
+<!-- vue -->
+    {% verbatim a %}
+        <div id="app">
+            <datatable></datatable>
+        </div>
+    </div>
+</div>
+
+
+<template id="tmp1">
+    <div>
+    <!-- 数据表 -->
+      <el-col :span="4" :offset="20"><el-input
+          clearable
+          v-model="keywords"
+          size="mini"
+          ref="search_bar"
+          placeholder="输入关键字搜索"></el-input></el-col>
+
+      <el-table
+        :data="searchData(keywords)"
+        @sort-change="changeTableSort"
+        border
+        stripe
+        height="590px"
+        style="width: 100%">
+        <el-table-column
+          sortable
+          label="项目名"
+          min-width="200"
+          prop="project_name">
+        </el-table-column>
+        <el-table-column
+          sortable
+          label="分组"
+          min-width="165"
+          prop="playbook_path_group">
+        </el-table-column>
+        <el-table-column
+          sortable
+          label="分支"
+          min-width="142"
+          prop="branch">
+        </el-table-column>
+        <el-table-column
+          sortable
+          label="剧本文件"
+          min-width="410"
+          prop="playbook_path_sub">
+        </el-table-column>
+        <el-table-column
+          sortable
+          label="配置文件"
+          min-width="337"
+          prop="config_file_sub">
+        </el-table-column>
+        <el-table-column
+          label="操作"
+          min-width="365">
+          <template slot-scope="scope">
+            <el-button
+              size="mini"
+              type="success"
+              @click="handleRun(scope.$index, scope.row)">运行</el-button>
+            <el-button
+              size="mini"
+              type="Warning"
+              :disabled="edit_button(scope.row)"
+              @click="handleRun_config(scope.$index, scope.row)">运行配置</el-button>
+            <el-button
+              size="mini"
+              type="primary"
+              :disabled="edit_button(scope.row)"
+              @click="handleEdit(scope.$index, scope.row)">编辑配置</el-button>
+            <el-button
+              size="mini"
+              type="danger"
+              :disabled="edit_button_branch(scope.row)"
+              @click="handleEdit_branch(scope.$index, scope.row)">修改分支</el-button>
+          </template>
+        </el-table-column>
+      </el-table>
+        <el-pagination
+          background
+          @size-change="handleSizeChange"
+          @current-change="handleCurrentChange"
+          :current-page="currentPage"
+          :page-sizes="[10, 25, 50, 100]"
+          :page-size="pageSize"
+          layout="sizes, total, prev, pager, next, jumper"
+          :total="search(keywords).length">
+        </el-pagination>
+
+    <!-- 对话框 -->
+        <el-dialog title="编辑配置"
+                   :visible.sync="dialogFormVisible"
+                   :append-to-body="true"
+                   :before-close="handleClose">
+          <el-form>
+            <el-form-item label="" :label-width="10">
+                    <el-col :span="24">
+                        <el-input
+                          resize="none"
+                          rows="24"
+                          type="textarea"
+                          placeholder=""
+                          v-model="config_data">
+                        </el-input>
+                    </el-col>
+                </el-form-item>
+          </el-form>
+          <div slot="footer" class="dialog-footer">
+            <el-button @click="dialogFormVisible = false">取 消</el-button>
+            <el-button type="primary" @click="config_save">确 定</el-button>
+          </div>
+        </el-dialog>
+
+        <el-dialog
+          title="日志"
+          lock-scroll="false"
+          :visible.sync="dialogVisible"
+          :before-close="logClose"
+          width="50%">
+            <el-form>
+                <el-form-item label="" :label-width="10">
+                    <el-col :span="24">
+                        <el-input
+                          resize="none"
+                          rows="24"
+                          type="textarea"
+                          placeholder=""
+                          readonly
+                          v-model="log">
+                        </el-input>
+                    </el-col>
+                </el-form-item>
+            </el-form>
+        </el-dialog>
+
+        <el-dialog title="修改分支"
+                   :visible.sync="dialogFormVisible_branch"
+                   :append-to-body="true"
+                   :before-close="handleClose">
+          <el-form>
+            <el-form-item label="当前分支" :label-width="formLabelWidth">
+                <el-col :span="9">
+                    <el-input v-model="branch_now" readonly="true" autocomplete="on"></el-input>
+                </el-col>
+            </el-form-item>
+            <el-form-item label="将要修改的分支" :label-width="formLabelWidth">
+                <el-col :span="9">
+                    <el-input v-model="change_branch" autocomplete="on"></el-input>
+                </el-col>
+            </el-form-item>
+          </el-form>
+          <div slot="footer" class="dialog-footer">
+            <el-button @click="dialogFormVisible_branch = false">取 消</el-button>
+            <el-button type="primary" @click="branch_save">确 定</el-button>
+          </div>
+        </el-dialog>
+
+    </div>
+</template>
+
+
+{% endverbatim a %}
+<script src="/static/vue.min.js"></script>
+<script src="/static/vuex.js"></script>
+<!--
+<script src="https://unpkg.com/element-ui/lib/index.js"></script>
+-->
+<script src="/static/index.js"></script>
+<script src="/static/axios.min.js"></script>
+<link rel="stylesheet" href="https://unpkg.com/element-ui/lib/theme-chalk/index.css"/>
+
+<script>
+    var store = new Vuex.Store({
+      state: {
+        keywords: localStorage.getItem("ansiable_playbook_keywords") || '',
+      },
+      mutations:{
+        set(state,info){
+          localStorage.setItem('ansiable_playbook_keywords', info); //将传递的数据先保存到localStorage中
+        }
+      }
+    })
+
+    var vm = new Vue({
+        // 绑定对象
+        el:'#app',
+        data:{
+        },
+        methods:{
+        },
+        components: {
+            datatable: {
+                template: '#tmp1',
+                data() {
+                    return {
+                        tableData: [],
+                        keywords: this.$store.state.keywords,
+                        currentPage: 1,
+                        pageSize: 10,
+                        dialogFormVisible: false,
+                        dialogVisible: false,
+                        dialogFormVisible_branch: false,
+                        webSocket: '',
+                        log: '',
+                        config_data: '',
+                        config_file_now: '',
+                        project_name_now: '',
+                        branch_now: '',
+                        vars_files_now: '',
+                        change_branch: '',
+                        formLabelWidth: '25%'
+                    }
+                },
+                ready: function () {
+
+                },
+                methods: {
+                    searchData(keywords) {
+                        //处理分页显示
+                        let newList = this.search(keywords)
+                        let tableDataSlice = newList.slice(this.currentPage * this.pageSize - this.pageSize,
+                            this.currentPage * this.pageSize);
+                        if (tableDataSlice.length == 0){
+                            //当搜索栏为空自动切回第一页
+                            this.currentPage = 1
+                        }
+                        this.$store.commit('set',keywords)
+                        //自定义显示
+                        let tableDataSlice_map = [];
+                        tableDataSlice.map(item=>{
+                            let playbook_path_sub = '';
+                            let config_file_sub = '';
+                            let obj = item;
+                            if(item.playbook_path){
+                                playbook_path_sub = item.playbook_path.split('/').slice(4, 5).join('/')
+                                playbook_path_group = item.playbook_path.split('/').slice(3, 4).join('/')
+                            }
+                            if(item.config_file){
+                                config_file_sub = item.config_file.split('/').slice(6, 7).join('/')
+                            }
+                            obj['playbook_path_sub'] = playbook_path_sub;
+                            obj['playbook_path_group'] = playbook_path_group;
+                            obj['config_file_sub'] = config_file_sub;
+                            tableDataSlice_map.push(obj)
+                        });
+                        return tableDataSlice_map
+                    },
+                    search(keywords) {
+                        //数据搜索
+                        let newList = this.tableData.filter(item=>{
+                            if(item.project_name.includes(keywords)){
+                                return true
+                            }else if(item.playbook_path.includes(keywords)){
+                                return true
+                            }
+                        });
+                        return newList
+                    },
+                    handleSizeChange(val) {
+                        //每页显示几行按钮
+                        this.pageSize = val
+                    },
+                    handleCurrentChange(val) {
+                        //跳转第几页按钮
+                        this.currentPage = val
+                    },
+                    handleClose(done) {
+                        //对话框关闭确认
+                        this.$confirm('确认关闭？')
+                          .then(_ => {
+                            done();
+                          })
+                          .catch(_ => {});
+                    },
+                    notify(code, msg){
+                        //消息提示
+                        if (code == 0){
+                            var title = '成功'
+                            var type = 'success'
+                        }else if (code == 1){
+                            var title = '错误'
+                            var type = 'error'
+                        }
+                        this.$notify({
+                          title: title,
+                          message: msg,
+                          type: type,
+                          offset: 37,
+                          showClose: false
+                        });
+                    },
+                    key_sort(column) {
+                        return function (obj1, obj2) {
+                            var val1 = obj1[column];
+                            var val2 = obj2[column];
+                            if (val1 < val2) {
+                                return -1;
+                            } else if (val1 > val2) {
+                                return 1;
+                            } else {
+                                return 0;
+                            }
+                        }
+                    },
+                    changeTableSort(column){
+                        //排序按钮
+                        localStorage.setItem('column', JSON.stringify(column));
+                        if (! column.order){
+                            this.tableData = JSON.parse(localStorage.getItem("tableData"))
+                        }else {
+
+                            if (column.order === 'ascending') {
+                                this.tableData = this.tableData.sort(this.key_sort(column.prop))
+                            } else if (column.order === 'descending') {
+                                this.tableData = this.tableData.sort(this.key_sort(column.prop)).reverse()
+                            }
+                        }
+                    },
+                    ws(data) {
+                        // 创建Web Socket对象
+                        let _this = this;
+                        _this.log = '';
+                        _this.webSocket = new WebSocket("ws://192.168.120.251:8000/ansiable_playbook_run/");
+                        // 当WebSocket建立网络连接时激发该函数
+                        _this.webSocket.onopen = function () {
+                            // 发送消息
+                            _this.webSocket.send(JSON.stringify(data));
+                        };
+                        // 为onmessage事件绑定监听器，接收消息
+                        _this.webSocket.onmessage = function (event) {
+                            // 接收消息
+                            //if (pods_name == '') {
+                            //    _this.log += JSON.parse(event.data) + '\n';
+                            //}else{
+                                _this.log += JSON.parse(event.data);
+                            //}
+                        };
+                        _this.webSocket.onerror = function(e) {
+                            if(e){
+                                console.log(e.data)
+                            }
+                        };
+                        _this.webSocket.onclose = function(e) {
+                            if(e){
+                                console.log(e.code + '/' + e.reason + '/' + e.wasClean)
+                            }
+                        };
+                    },
+                    post_data(url, data) {
+                        //axios异步请求
+                        var _this = this;
+                        axios({
+                            method: 'POST',
+                            headers: {
+                                'X-CSRFtoken': '{{ csrf_token }}'
+                            },
+                            url: url,
+                            data: data
+                        })
+                        .then(function (response) {
+                            if (response.data.code == -1) {
+                                _this.tableData = response.data.tableData;
+                                if (data){
+                                    localStorage.setItem('tableData', JSON.stringify(_this.tableData))
+                                }
+                                _this.changeTableSort(JSON.parse(localStorage.getItem("column")))
+                            }
+                            if (response.data.code == -2) {
+                                _this.config_data = response.data.result
+                            }
+                            if (response.data.code == 0) {
+                                _this.post_data('/ansiable_playbook_data/',{})
+                                _this.notify(response.data.code, response.data.msg)
+                            }
+                            if (response.data.code == 1) {
+                                _this.notify(response.data.code, response.data.msg)
+                            }
+                        })
+                            //.catch(function (error) {
+                            //    _this.notify(1, error)
+                            //})
+                    },
+                    edit_button(row){
+                        if (row.config_file){
+                            return false
+                        }else{
+                            return true
+                        }
+                    },
+                    edit_button_branch(row){
+                        if (row.branch){
+                            return false
+                        }else{
+                            return true
+                        }
+                    },
+                    handleRun(index, row) {
+                        //运行按钮
+                        this.$confirm('确认运行？')
+                            .then(_ => {
+                                this.ws({
+                                    playbook_path: row.playbook_path,
+                                    project_name: row.project_name,
+                                    type: 1
+                                });
+                                this.dialogVisible = true
+                            })
+                            .catch(_ => {});
+
+                    },
+                    handleRun_config(index, row) {
+                        //运行按钮
+                        this.$confirm('确认运行？')
+                            .then(_ => {
+                                this.ws({
+                                    playbook_path: row.playbook_path,
+                                    project_name: row.project_name,
+                                    type: 2
+                                });
+                                this.dialogVisible = true
+                            })
+                            .catch(_ => {});
+
+                    },
+                    handleEdit(index, row) {
+                        //编辑按钮
+                        this.config_data = '';
+                        this.config_file_now = row.config_file;
+                        this.project_name_now = row.project_name;
+                        this.post_data('/ansiable_playbook_config_edit/', {config_file: row.config_file});
+                        this.dialogFormVisible = true
+                    },
+                    handleEdit_branch(index, row) {
+                        //分支按钮
+                        this.change_branch = '';
+                        this.project_name_now = row.project_name;
+                        this.branch_now = row.branch;
+                        this.vars_files_now = row.vars_files;
+                        this.dialogFormVisible_branch = true
+                    },
+                    logClose(){
+                        this.webSocket.close();
+                        this.dialogVisible = false
+                    },
+                    config_save() {
+                        //编辑配置
+                        this.$confirm('确认编辑？')
+                            .then(_ => {
+                                let data = {
+                                    project_name: this.project_name_now,
+                                    config_file: this.config_file_now,
+                                    config_data: this.config_data
+                                };
+                                this.post_data('/ansiable_playbook_config_edit/',data)
+                                this.dialogFormVisible = false
+                            })
+                            .catch(_ => {});
+                    },
+                    branch_save(){
+                        //修改分支
+                        let data ={
+                            project_name: this.project_name_now,
+                            vars_files: this.vars_files_now,
+                            branch_now: this.branch_now,
+                            change_branch: this.change_branch
+                        };
+                        this.post_data('/ansiable_playbook_change_branch/', data);
+                        this.dialogFormVisible_branch = false
+                    }
+                },
+                created(){
+                    //数据函数加载完成后
+                    this.post_data('/ansiable_playbook_data/',{})
+                },
+                mounted(){
+                    //网页完全显示后
+                    this.$refs.search_bar.focus()
+                    this.changeTableSort({prop: 'project_name', order: 'descending'})
+                },
+                store: store
+            }
+        }
+    })
+
+</script>
+
+
+
+{% endblock %}
