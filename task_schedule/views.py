@@ -2,7 +2,7 @@
 from django.shortcuts import render
 from django.contrib.auth.decorators import login_required
 from django.http import HttpResponse
-from task_schedule.models import tasks
+from task_schedule.models import single_tasks, task_group
 import json
 import subprocess
 import time
@@ -14,7 +14,10 @@ from dwebsocket import require_websocket
 import re
 from task_schedule.apps import type_dict
 from commons.socket_send_data import tunnel_send
-
+from threading import Thread
+from task_schedule import tasks
+from ast import literal_eval
+from celery.task.control import revoke
 
 
 
@@ -23,18 +26,38 @@ def log_web_socket(request):
     message = request.websocket.wait()
     message = json.loads(message)
 
-    orm = tasks.objects.get(id=message['id'])
+    # 接收keepalive
+    def keepalive_t(request):
+        while 1:
+            try:
+                request.websocket.wait()
+            except Exception:
+                break
+    Thread(target=keepalive_t, args=(request,)).start()
+
+    orm = single_tasks.objects.get(id=message['id'])
     host = orm.target.split(':')[0]
     port = orm.target.split(':')[1]
-
+    # 获取正在运行的pod名
+    pods_name_Running = ''
+    if message['pods_name'] != '':
+        tmp_list = message['pods_name'].split('-')
+        tmp_list[-2] = '.*'
+        pods_name = '-'.join(tmp_list)
+        pods_Running = subprocess.Popen(f'ssh {host} -p {port} "kubectl get pods |grep {pods_name}|grep Running"|' +
+                                        "awk '{print $1}'", shell=True, stdout=subprocess.PIPE)
+        pods_Running.wait()
+        pods_name_Running = pods_Running.stdout.read().decode().strip()
 
     while 1:
         try:
             request.websocket.read()
         except EOFError:
             break
-        if message['pods_name'] != '':
-            p = subprocess.Popen(f"ssh {host} -p {port} 'kubectl logs {message['pods_name']}'", shell=True, stdout=subprocess.PIPE)
+        if pods_name_Running != '':
+            p = subprocess.Popen(f"ssh {host} -p {port} 'kubectl logs {pods_name_Running}'", shell=True, stdout=subprocess.PIPE)
+            # p = subprocess.Popen(f'''ssh {host} -p {port} "cat {orm.k8s_log}"''', shell=True,
+            #                      stdout=subprocess.PIPE)
         else:
             p = subprocess.Popen(f'''ssh {host} -p {port} "cat /tmp/{message['name']}.log"''', shell=True,
                                  stdout=subprocess.PIPE)
@@ -63,6 +86,7 @@ def log_web_socket(request):
     #         request.websocket.send('日志还未生成，稍后再试')
 
 
+
 @login_required
 def task_table(request):
     # flag = check_permission(u'nagios',request.user.username)
@@ -75,9 +99,11 @@ def task_table(request):
                                                      'page_name1':u'任务调度',
                                                      'page_name2':'任务'})
 
+
+
 @login_required
 def task_table_data(request):
-    orm = tasks.objects.all()
+    orm = single_tasks.objects.all()
     tableData = []
     for i in orm:
         tableData.append({
@@ -95,7 +121,7 @@ def task_table_data(request):
         })
     # 探测任务是否结束
     try:
-        orm_sub = tasks.objects.filter(status='运行中')
+        orm_sub = single_tasks.objects.filter(status='运行中')
         for i in orm_sub:
             host = i.target.split(':')[0]
             port = i.target.split(':')[1]
@@ -116,6 +142,8 @@ def task_table_data(request):
         print(e)
     return HttpResponse(json.dumps({'code':-1,'tableData':tableData}),content_type="application/json")
 
+
+
 @login_required
 def task_table_save(request):
     try:
@@ -127,10 +155,18 @@ def task_table_save(request):
         target = data.get('target')
         task_cmd = data.get('task_cmd')
         if not _id:
-            orm = tasks(task_name=task_name, task_desc=task_desc, task_type=task_type, target=target, task_cmd=task_cmd,
-                        status='未执行', pods_name='')
+            # 脚本如果没有设置重定向日志，则设置默认重定向日志
+            k8s_log = ''
+            # if task_type == 'k8s-shell':
+            #     if ('>' or '>>') in re.search(r'\.jar.*(\n|$)',task_cmd).group():
+            #         k8s_log = re.search(r'\.jar.*>+(.*)(\n|$)',task_cmd).group(1).strip()
+            #     else:
+            #         k8s_log = f'/tmp/{task_name}_k8s.log'
+            #         task_cmd = re.sub(r'(\.jar.*)(\n|$)', f'\\1 >> {k8s_log}\n', task_cmd)
+            orm = single_tasks(task_name=task_name, task_desc=task_desc, task_type=task_type, target=target, task_cmd=task_cmd,
+                        status='未执行', pods_name='', k8s_log=k8s_log)
         else:
-            orm = tasks.objects.get(id=_id)
+            orm = single_tasks.objects.get(id=_id)
             orm.task_name = task_name
             orm.task_desc = task_desc
             orm.task_type = task_type
@@ -141,23 +177,27 @@ def task_table_save(request):
     except Exception as e:
         return HttpResponse(json.dumps({'code': 1, 'msg': e}), content_type="application/json")
 
+
+
 @login_required
 def task_table_del(request):
     try:
         data = json.loads(request.body)
         _id = data.get('id')
-        orm = tasks.objects.get(id=_id)
+        orm = single_tasks.objects.get(id=_id)
         orm.delete()
         return HttpResponse(json.dumps({'code':0,'msg':'操作成功'}),content_type="application/json")
     except Exception as e:
         return HttpResponse(json.dumps({'code': 1, 'msg': e}), content_type="application/json")
+
+
 
 # @login_required
 # def task_table_run(request):
 #     try:
 #         data = json.loads(request.body)
 #         _id = data.get('id')
-#         orm = tasks.objects.get(id=_id)
+#         orm = single_tasks.objects.get(id=_id)
 #         name = orm.task_name
 #         _type = orm.task_type
 #
@@ -226,75 +266,81 @@ def task_table_del(request):
 #         orm.save()
 #         return HttpResponse(json.dumps({'code': 1, 'msg': e}), content_type="application/json")
 
+
+
 @login_required
 def task_table_run(request):
     try:
         data = json.loads(request.body)
-        _id = data.get('id')
-        orm = tasks.objects.get(id=_id)
-        name = orm.task_name
-        _type = orm.task_type
-
-        host = orm.target.split(':')[0]
-        port = int(orm.target.split(':')[1])
-        cmd = orm.task_cmd
-        status = orm.status
-        if status == '运行中':
-            return HttpResponse(json.dumps({'code': 1, 'msg': '任务正在执行'}), content_type="application/json")
-        # 调用socket接口启动脚本
-        data = {
-            'name': name,
-            'cmd': cmd,
-            'suffix': type_dict[_type]["suffix"],
-            'bin': type_dict[_type]["bin"]
-        }
-        code = tunnel_send(host, port, data)
-        if code == 0:
-            orm.last_run_time = str(datetime.datetime.now())
-            orm.status = '运行中'
-            orm.save()
-
-        def k8s_call_back(orm, name, host, port):
-            # 从远程机器的shell日志判断Running状态，并获取pods名入库
-            count = 0
-            while 1:
-                p = subprocess.Popen(
-                    f'ssh {host} -p {port} "grep Running /tmp/{name}.log' +
-                    f" > /dev/null 2>&1 && grep 'pod name' /tmp/{name}.log" +
-                    '''|uniq"|awk -F':' '{print $2}' ''',
-                    shell=True, stdout=subprocess.PIPE)
-                p.wait()
-                stdout, stderr = p.communicate()
-                if stdout:
-                    pods_name = stdout.decode().strip()
-                    orm.pods_name = pods_name
-                    orm.save()
-                    break
-                else:
-                    if count == 30:
-                        break
-                    time.sleep(1)
-                    count += 1
-                    continue
-
-        if _type == 'k8s-shell':
-            threading.Thread(target=k8s_call_back, args=(orm, name, host, port)).start()
-
+        task_name = data.get('task_name')
+        # orm = single_tasks.objects.get(id=_id)
+        # name = orm.task_name
+        # _type = orm.task_type
+        #
+        # host = orm.target.split(':')[0]
+        # port = int(orm.target.split(':')[1])
+        # cmd = orm.task_cmd
+        # status = orm.status
+        # if status == '运行中':
+        #     return HttpResponse(json.dumps({'code': 1, 'msg': '任务正在执行'}), content_type="application/json")
+        # # 调用socket接口启动脚本
+        # data = {
+        #     'name': name,
+        #     'cmd': cmd,
+        #     'suffix': type_dict[_type]["suffix"],
+        #     'bin': type_dict[_type]["bin"]
+        # }
+        # code = tunnel_send(host, port, data)
+        # if code == 0:
+        #     orm.last_run_time = str(datetime.datetime.now())
+        #     orm.status = '运行中'
+        #     orm.save()
+        #
+        # def k8s_call_back(orm, name, host, port):
+        #     # 从远程机器的shell日志判断Running状态，并获取pods名入库
+        #     count = 0
+        #     while 1:
+        #         p = subprocess.Popen(
+        #             f'ssh {host} -p {port} "grep Running /tmp/{name}.log' +
+        #             f" > /dev/null 2>&1 && grep 'pod name' /tmp/{name}.log" +
+        #             '''|uniq"|awk -F':' '{print $2}' ''',
+        #             shell=True, stdout=subprocess.PIPE)
+        #         p.wait()
+        #         stdout, stderr = p.communicate()
+        #         if stdout:
+        #             pods_name = stdout.decode().strip()
+        #             orm.pods_name = pods_name
+        #             orm.save()
+        #             break
+        #         else:
+        #             if count == 30:
+        #                 break
+        #             time.sleep(1)
+        #             count += 1
+        #             continue
+        #
+        # if _type == 'k8s-shell':
+        #     threading.Thread(target=k8s_call_back, args=(orm, name, host, port)).start()
+        task = tasks.run_task.delay(task_name)
+        orm = single_tasks.objects.filter(task_name=task_name)
+        orm.update(task_id = task.task_id)
         return HttpResponse(json.dumps({'code':0,'msg':'操作成功'}),content_type="application/json")
     except Exception as e:
-        orm.status = '执行错误'
-        orm.save()
         return HttpResponse(json.dumps({'code': 1, 'msg': e}), content_type="application/json")
+
+
 
 @login_required
 def task_table_kill(request):
     try:
         data = json.loads(request.body)
         _id = data.get('id')
-        orm = tasks.objects.get(id=_id)
+        orm = single_tasks.objects.get(id=_id)
         name = orm.task_name
         _type = orm.task_type
+        task_id = orm.task_id
 
+        revoke(task_id, terminate=True)
         host = orm.target.split(':')[0]
         port = orm.target.split(':')[1]
         tmp_file = f'/tmp/{name}{type_dict[_type]["suffix"]}'
@@ -321,6 +367,93 @@ def task_table_kill(request):
                         subprocess.call(f'ssh {host} -p {port} "kubectl delete pods {i}"', shell=True)
             threading.Thread(target=thread_run).start()
 
+        return HttpResponse(json.dumps({'code':0,'msg':'操作成功'}),content_type="application/json")
+    except Exception as e:
+        return HttpResponse(json.dumps({'code': 1, 'msg': e}), content_type="application/json")
+
+
+
+@login_required
+def task_table_group(request):
+    # flag = check_permission(u'nagios',request.user.username)
+    # if flag < 1:
+    #     return render(request,'public/no_passing.html')
+    path = request.path.split('/')[1]
+    return render(request, 'task_schedule/task_schedule_group.html', {'user':request.user.username,
+                                                     'path1':'task_schedule',
+                                                     'path2':path,
+                                                     'page_name1':u'任务调度',
+                                                     'page_name2':'任务组'})
+
+
+
+@login_required
+def task_table_group_data(request):
+    orm = task_group.objects.all()
+    tableData = []
+    for i in orm:
+        try:
+            group_content = literal_eval(i.group_content)
+        except Exception:
+            group_content =i.group_content
+        tableData.append({
+            'id': i.id,
+            'group_name': i.group_name,
+            'group_desc': i.group_desc,
+            'group_content': group_content,
+            'duration': i.duration.split('.')[0],
+            'status': i.status,
+            'task_now': i.task_now,
+            'create_time': str(i.create_time).split('.')[0],
+            'last_run_time': str(i.last_run_time).split('.')[0]
+        })
+    return HttpResponse(json.dumps({'code':-1,'tableData':tableData}),content_type="application/json")
+
+
+
+@login_required
+def task_table_group_save(request):
+    try:
+        data = json.loads(request.body)
+        _id = data.get('id')
+        group_name = data.get('group_name')
+        group_desc = data.get('group_desc')
+        group_content = data.get('group_content')
+        if not _id:
+            orm = task_group(group_name=group_name, group_desc=group_desc, group_content=group_content, status='未执行')
+        else:
+            orm = task_group.objects.get(id=_id)
+            orm.group_name = group_name
+            orm.group_desc = group_desc
+            orm.group_content = group_content
+        orm.save()
+        return HttpResponse(json.dumps({'code':0,'msg':'操作成功'}),content_type="application/json")
+    except Exception as e:
+        return HttpResponse(json.dumps({'code': 1, 'msg': e}), content_type="application/json")
+
+
+
+@login_required
+def task_table_group_del(request):
+    try:
+        data = json.loads(request.body)
+        _id = data.get('id')
+        orm = task_group.objects.get(id=_id)
+        orm.delete()
+        return HttpResponse(json.dumps({'code': 0, 'msg': '操作成功'}), content_type="application/json")
+    except Exception as e:
+        return HttpResponse(json.dumps({'code': 1, 'msg': e}), content_type="application/json")
+
+
+
+@login_required
+def task_table_group_run(request):
+    try:
+        data = json.loads(request.body)
+        _id = data.get('id')
+        task = tasks.run_tasks.delay(_id)
+        orm = task_group.objects.filter(id=_id)
+        orm.update(task_id = task.task_id)
         return HttpResponse(json.dumps({'code':0,'msg':'操作成功'}),content_type="application/json")
     except Exception as e:
         return HttpResponse(json.dumps({'code': 1, 'msg': e}), content_type="application/json")

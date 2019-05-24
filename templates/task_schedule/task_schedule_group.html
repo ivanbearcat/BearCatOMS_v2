@@ -37,28 +37,35 @@
         style="width: 100%">
         <el-table-column
           sortable
-          label="任务名"
-          prop="task_name">
+          label="任务组名"
+          prop="group_name">
         </el-table-column>
         <el-table-column
           sortable
-          label="任务描述"
-          prop="task_desc">
+          label="任务组描述"
+          prop="group_desc">
         </el-table-column>
         <el-table-column
           sortable
-          label="任务类型"
-          prop="task_type">
+          label="内容"
+          min-width="400"
+          prop="group_content">
+            <template slot-scope="scope">
+                <el-tag
+                  v-for="item in scope.row.group_content"
+                  type="info"
+                  disable-transitions>{{item}}</el-tag>
+            </template>
         </el-table-column>
         <el-table-column
           sortable
-          label="目标主机"
+          label="当前任务"
           width="181"
-          prop="target">
+          prop="task_now">
         </el-table-column>
         <el-table-column
           sortable
-          label="耗时"
+          label="总耗时"
           prop="duration">
         </el-table-column>
         <el-table-column
@@ -123,43 +130,34 @@
         </el-pagination>
 
     <!-- 对话框 -->
-        <el-dialog title="添加任务"
+        <el-dialog title="添加任务组"
                    :visible.sync="dialogFormVisible"
                    :append-to-body="true"
                    :before-close="handleClose">
           <el-form :model="form">
-            <el-form-item label="任务名称" :label-width="formLabelWidth">
+            <el-form-item label="任务组名称" :label-width="formLabelWidth">
                 <el-col :span="7">
-                    <el-input v-model="form.task_name" autocomplete="on"></el-input>
+                    <el-input v-model="form.group_name" autocomplete="on"></el-input>
                 </el-col>
             </el-form-item>
-            <el-form-item label="任务描述" :label-width="formLabelWidth">
+            <el-form-item label="任务组描述" :label-width="formLabelWidth">
                 <el-col :span="7">
-                    <el-input v-model="form.task_desc" autocomplete="on"></el-input>
+                    <el-input v-model="form.group_desc" autocomplete="on"></el-input>
                 </el-col>
             </el-form-item>
-            <el-form-item label="任务类型" :label-width="formLabelWidth">
-                <el-select v-model="form.task_type" placeholder="请选择任务类型">
-                    <el-option label="k8s-shell" value="k8s-shell"></el-option>
-                    <el-option label="shell" value="shell"></el-option>
-                    <el-option label="http" value="http"></el-option>
-                    <el-option label="python" value="python"></el-option>
+            <el-form-item label="任务组内容" :label-width="formLabelWidth">
+                <el-col :span="7">
+                <el-select v-model="form.group_content"
+                           multiple
+                           clearable
+                           filterable
+                           value-key="task_name"
+                           placeholder="请选择多个单任务">
+                    <el-option v-for="item in tableData_single"
+                               :label="item.task_name"
+                               :value="item.task_name">
+                    </el-option>
                 </el-select>
-            </el-form-item>
-            <el-form-item label="目标主机" :label-width="formLabelWidth">
-                <el-select v-model="form.target" placeholder="请选择目标主机">
-                    <el-option label="113.107.166.14:15230" value="113.107.166.14:15230"></el-option>
-                </el-select>
-            </el-form-item>
-            <el-form-item label="任务内容" :label-width="formLabelWidth">
-                <el-col :span="18">
-                    <el-input
-                      :autosize="{ minRows: 3 }"
-                      resize="both"
-                      type="textarea"
-                      placeholder="请输入内容"
-                      v-model="form.task_cmd">
-                    </el-input>
                 </el-col>
             </el-form-item>
           </el-form>
@@ -235,6 +233,7 @@ wget https://unpkg.com/element-ui/lib/theme-chalk/fonts/element-icons.woff
                 data() {
                     return {
                         tableData: [],
+                        tableData_single: [],
                         keywords: this.$store.state.keywords,
                         currentPage: 1,
                         pageSize: 10,
@@ -244,11 +243,9 @@ wget https://unpkg.com/element-ui/lib/theme-chalk/fonts/element-icons.woff
                         log: '',
                         form: {
                           id: '',
-                          task_name: '',
-                          task_desc: '',
-                          task_type: '',
-                          target: '',
-                          task_cmd: ''
+                          group_name: '',
+                          group_desc: '',
+                          group_content: []
                         },
                         formLabelWidth: '25%'
                     }
@@ -267,20 +264,12 @@ wget https://unpkg.com/element-ui/lib/theme-chalk/fonts/element-icons.woff
                             this.currentPage = 1
                         }
                         this.$store.commit('set',keywords)
-                        //自定义显示
-                        let tableDataSlice_custom = [];
-                        for( let i of tableDataSlice){
-                            let entry = {};
-                            Object.assign(entry, i);
-                            entry.duration = this.secondToDate(parseInt(i.duration));
-                            tableDataSlice_custom.push(entry)
-                        }
-                        return tableDataSlice_custom
+                        return tableDataSlice
                     },
                     search(keywords) {
                         //数据搜索
                         let newList = this.tableData.filter(item=>{
-                            if(item.task_name.includes(keywords)){
+                            if(item.group_name.includes(keywords)){
                                 return true
                             }
                         });
@@ -405,14 +394,18 @@ wget https://unpkg.com/element-ui/lib/theme-chalk/fonts/element-icons.woff
                         })
                         .then(function (response) {
                             if (response.data.code == -1) {
-                                _this.tableData = response.data.tableData;
-                                if (data){
-                                    localStorage.setItem('tableData', JSON.stringify(_this.tableData))
+                                if (url == '/task_table_data/'){
+                                    _this.tableData_single = response.data.tableData;
+                                }else {
+                                    _this.tableData = response.data.tableData;
+                                    if (data) {
+                                        localStorage.setItem('tableData', JSON.stringify(_this.tableData))
+                                    }
+                                    _this.changeTableSort(JSON.parse(localStorage.getItem("column")))
                                 }
-                                _this.changeTableSort(JSON.parse(localStorage.getItem("column")))
                             }
                             if (response.data.code == 0) {
-                                _this.post_data('/task_table_data/',{})
+                                _this.post_data('/task_table_group_data/',{})
                                 _this.notify(response.data.code, response.data.msg)
                             }
                             if (response.data.code == 1) {
@@ -423,21 +416,13 @@ wget https://unpkg.com/element-ui/lib/theme-chalk/fonts/element-icons.woff
                                 _this.notify(1, error)
                             })
                     },
-                    secondToDate(result) {
-                        var h = Math.floor(result / 3600) < 10 ? '0'+Math.floor(result / 3600) : Math.floor(result / 3600);
-                        var m = Math.floor((result / 60 % 60)) < 10 ? '0' + Math.floor((result / 60 % 60)) : Math.floor((result / 60 % 60));
-                        var s = Math.floor((result % 60)) < 10 ? '0' + Math.floor((result % 60)) : Math.floor((result % 60));
-                        return result = h + ":" + m + ":" + s;
-                    },
                     handleAdd(index, row) {
                         //编辑按钮
                         this.form = {
                           id: '',
-                          task_name: '',
-                          task_desc: '',
-                          task_type: '',
-                          target: '',
-                          task_cmd: ''
+                          group_name: '',
+                          group_desc: '',
+                          group_content: ''
                         };
                         this.dialogFormVisible = true
                     },
@@ -445,11 +430,9 @@ wget https://unpkg.com/element-ui/lib/theme-chalk/fonts/element-icons.woff
                         //编辑按钮
                         this.form = {
                           id: row.id,
-                          task_name: row.task_name,
-                          task_desc: row.task_desc,
-                          task_type: row.task_type,
-                          target: row.target,
-                          task_cmd: row.task_cmd
+                          group_name: row.group_name,
+                          group_desc: row.group_desc,
+                          group_content: row.group_content
                         };
                         this.dialogFormVisible = true
                     },
@@ -458,7 +441,7 @@ wget https://unpkg.com/element-ui/lib/theme-chalk/fonts/element-icons.woff
                         this.$confirm('确认删除？')
                           .then(_ => {
                             data = { id: row.id };
-                            this.post_data('/task_table_del/',data)
+                            this.post_data('/task_table_group_del/',data)
                           })
                           .catch(_ => {});
                     },
@@ -466,8 +449,8 @@ wget https://unpkg.com/element-ui/lib/theme-chalk/fonts/element-icons.woff
                         //删除按钮
                         this.$confirm('确认运行？')
                           .then(_ => {
-                            data = { task_name: row.task_name };
-                            this.post_data('/task_table_run/',data)
+                            data = { id: row.id };
+                            this.post_data('/task_table_group_run/',data)
                           })
                           .catch(_ => {});
                     },
@@ -494,18 +477,17 @@ wget https://unpkg.com/element-ui/lib/theme-chalk/fonts/element-icons.woff
                         //添加按钮
                         let data = {
                             id: this.form.id,
-                            task_name: this.form.task_name,
-                            task_desc: this.form.task_desc,
-                            task_type: this.form.task_type,
-                            target: this.form.target,
-                            task_cmd: this.form.task_cmd
+                            group_name: this.form.group_name,
+                            group_desc: this.form.group_desc,
+                            group_content: this.form.group_content
                         };
-                        this.post_data('/task_table_save/',data);
+                        this.post_data('/task_table_group_save/',data);
                         this.dialogFormVisible = false
                     }
                 },
                 created(){
                     //数据函数加载完成后
+                    this.post_data('/task_table_group_data/',{})
                     this.post_data('/task_table_data/',{})
                 },
                 mounted(){
@@ -514,7 +496,7 @@ wget https://unpkg.com/element-ui/lib/theme-chalk/fonts/element-icons.woff
                     this.changeTableSort({prop: 'create_time', order: 'descending'});
                     let _this = this;
                     setInterval(function() {
-                        _this.post_data('/task_table_data/',{})
+                        _this.post_data('/task_table_group_data/',{})
                     },5000);
                 },
                 store: store

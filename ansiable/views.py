@@ -12,6 +12,7 @@ from dwebsocket import require_websocket
 import time
 import os
 from ansiable.models import logs
+from threading import Thread
 
 
 @login_required
@@ -34,31 +35,42 @@ def ansiable_playbook_data(request):
 def ansiable_playbook_run(request):
     message = request.websocket.wait()
     message = json.loads(message)
-
+    # 接收keepalive
+    def keepalive_t(request):
+        while 1:
+            try:
+                request.websocket.wait()
+            except Exception:
+                break
+    Thread(target=keepalive_t, args=(request,)).start()
     playbook_path = message.get('playbook_path')
     # playbook_path = '/root/playbooks/xiaohulu/test.yaml'
     project_name = message.get('project_name')
     _type = message.get('type')
-    # 记录日志
-    if _type == 1:
-        operation = f'运行剧本 {playbook_path}'
-    elif _type == 2:
-        operation = f'运行剧本 [仅配置] {playbook_path}'
-    orm_log = logs(name=request.user.username,
-                   project_name=project_name,
-                   operation=operation)
-    orm_log.save()
 
-    if _type == 1:
-        p = subprocess.Popen(f'ssh {ansiable_host} -p {ansiable_port} "/usr/bin/ansible-playbook {playbook_path}"',
-                             shell=True, stdout=subprocess.PIPE)
-    elif _type == 2:
-        p = subprocess.Popen(f'ssh {ansiable_host} -p {ansiable_port} "/usr/bin/ansible-playbook {playbook_path} -t copyfile"',
-                             shell=True, stdout=subprocess.PIPE)
-    while p.poll() == None:
-        line = p.stdout.readline().decode()
-        if line:
-            request.websocket.send(json.dumps(line))
+    if not (playbook_path and project_name and _type):
+        request.websocket.send(json.dumps('error'))
+    else:
+        # 记录日志
+        if _type == 1:
+            operation = f'运行剧本 {playbook_path}'
+        elif _type == 2:
+            operation = f'运行剧本 [仅配置] {playbook_path}'
+        orm_log = logs(name=request.user.username,
+                       project_name=project_name,
+                       operation=operation)
+        orm_log.save()
+
+        if _type == 1:
+            p = subprocess.Popen(f'ssh {ansiable_host} -p {ansiable_port} "/usr/bin/ansible-playbook {playbook_path}"',
+                                 shell=True, stdout=subprocess.PIPE)
+        elif _type == 2:
+            p = subprocess.Popen(f'ssh {ansiable_host} -p {ansiable_port} "/usr/bin/ansible-playbook {playbook_path} -t copyfile"',
+                                 shell=True, stdout=subprocess.PIPE)
+        while p.poll() == None:
+            line = p.stdout.readline().decode()
+            if line:
+                request.websocket.send(json.dumps(line))
 
 
 

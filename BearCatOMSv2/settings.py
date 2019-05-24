@@ -40,6 +40,7 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
     'werkzeug_debugger_runserver',
     'django_extensions',
+    'django_celery_results',
     'server_info',
     'operation',
     'audit',
@@ -156,7 +157,7 @@ logger = logging.getLogger("fileLogger")
 
 
 # celery settings
-CELERY_BROKER_URL = 'redis://localhost'
-CELERY_ACCEPT_CONTENT = ['json']
-CELERY_RESULT_BACKEND = 'redis://localhost'
+# 守护进程启动 celery multi start BearCatOMS -A BearCatOMSv2 -l info --logfile=./celery.log
+CELERY_BROKER_URL = 'redis://127.0.0.1:6379/0'
+CELERY_RESULT_BACKEND = 'django-db'
 CELERY_TASK_SERIALIZER = 'json'

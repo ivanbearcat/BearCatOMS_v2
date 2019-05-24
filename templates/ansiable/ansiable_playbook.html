@@ -181,7 +181,11 @@
 -->
 <script src="/static/index.js"></script>
 <script src="/static/axios.min.js"></script>
+    <!--
 <link rel="stylesheet" href="https://unpkg.com/element-ui/lib/theme-chalk/index.css"/>
+wget https://unpkg.com/element-ui/lib/theme-chalk/fonts/element-icons.woff
+-->
+<link rel="stylesheet" href="/static/index.css"/>
 
 <script>
     var store = new Vuex.Store({
@@ -193,7 +197,7 @@
           localStorage.setItem('ansiable_playbook_keywords', info); //将传递的数据先保存到localStorage中
         }
       }
-    })
+    });
 
     var vm = new Vue({
         // 绑定对象
@@ -339,6 +343,10 @@
                         _this.webSocket.onopen = function () {
                             // 发送消息
                             _this.webSocket.send(JSON.stringify(data));
+                            // 发送keepalive
+                            setInterval(function() {
+                                _this.webSocket.send(JSON.stringify({keepalive: 1}));
+                            },10000);
                         };
                         // 为onmessage事件绑定监听器，接收消息
                         _this.webSocket.onmessage = function (event) {
