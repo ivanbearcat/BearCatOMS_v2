@@ -83,9 +83,15 @@ def ansiable_playbook_config_edit(request):
     config_data = data.get('config_data')
     backup_file = os.path.join(os.path.dirname(config_file), '.' + os.path.basename(config_file))
     if config_data:
+        config_data = config_data.replace('"', '\\"').replace("'", "\\'")
         p = subprocess.Popen(f'''
             ssh {ansiable_host} -p {ansiable_port} "unalias cp; cp -a {config_file} {backup_file}; /usr/bin/echo '{config_data}' > {config_file}"
         ''', shell=True, stdout=subprocess.PIPE)
+
+        # p = subprocess.Popen(f'''
+        #     ssh {ansiable_host} -p {ansiable_port} "unalias cp; cp -a {config_file} {backup_file}; /usr/bin/cat << EOF > {config_file}
+        #     {config_data}"
+        # ''', shell=True, stdout=subprocess.PIPE)
         p.wait()
         # 记录日志
         p = subprocess.Popen(f'ssh {ansiable_host} -p {ansiable_port} "/usr/bin/diff {config_file} {backup_file}"',

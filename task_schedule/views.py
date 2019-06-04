@@ -18,6 +18,9 @@ from threading import Thread
 from task_schedule import tasks
 from ast import literal_eval
 from celery.task.control import revoke
+from django_celery_beat.models import PeriodicTask, CrontabSchedule
+from django.db.models import Q
+from BearCatOMSv2.settings import TIME_ZONE
 
 
 
@@ -93,7 +96,7 @@ def task_table(request):
     # if flag < 1:
     #     return render(request,'public/no_passing.html')
     path = request.path.split('/')[1]
-    return render(request, 'task_schedule/task_schedule_single.html', {'user':request.user.username,
+    return render(request, 'task_schedule/task_single.html', {'user':request.user.username,
                                                      'path1':'task_schedule',
                                                      'path2':path,
                                                      'page_name1':u'任务调度',
@@ -156,7 +159,6 @@ def task_table_save(request):
         task_cmd = data.get('task_cmd')
         if not _id:
             # 脚本如果没有设置重定向日志，则设置默认重定向日志
-            k8s_log = ''
             # if task_type == 'k8s-shell':
             #     if ('>' or '>>') in re.search(r'\.jar.*(\n|$)',task_cmd).group():
             #         k8s_log = re.search(r'\.jar.*>+(.*)(\n|$)',task_cmd).group(1).strip()
@@ -164,7 +166,7 @@ def task_table_save(request):
             #         k8s_log = f'/tmp/{task_name}_k8s.log'
             #         task_cmd = re.sub(r'(\.jar.*)(\n|$)', f'\\1 >> {k8s_log}\n', task_cmd)
             orm = single_tasks(task_name=task_name, task_desc=task_desc, task_type=task_type, target=target, task_cmd=task_cmd,
-                        status='未执行', pods_name='', k8s_log=k8s_log)
+                        status='未执行', pods_name='')
         else:
             orm = single_tasks.objects.get(id=_id)
             orm.task_name = task_name
@@ -321,9 +323,8 @@ def task_table_run(request):
         #
         # if _type == 'k8s-shell':
         #     threading.Thread(target=k8s_call_back, args=(orm, name, host, port)).start()
-        task = tasks.run_task.delay(task_name)
-        orm = single_tasks.objects.filter(task_name=task_name)
-        orm.update(task_id = task.task_id)
+        tasks.run_task.delay(task_name)
+
         return HttpResponse(json.dumps({'code':0,'msg':'操作成功'}),content_type="application/json")
     except Exception as e:
         return HttpResponse(json.dumps({'code': 1, 'msg': e}), content_type="application/json")
@@ -379,7 +380,7 @@ def task_table_group(request):
     # if flag < 1:
     #     return render(request,'public/no_passing.html')
     path = request.path.split('/')[1]
-    return render(request, 'task_schedule/task_schedule_group.html', {'user':request.user.username,
+    return render(request, 'task_schedule/task_group.html', {'user':request.user.username,
                                                      'path1':'task_schedule',
                                                      'path2':path,
                                                      'page_name1':u'任务调度',
@@ -450,10 +451,194 @@ def task_table_group_del(request):
 def task_table_group_run(request):
     try:
         data = json.loads(request.body)
-        _id = data.get('id')
-        task = tasks.run_tasks.delay(_id)
-        orm = task_group.objects.filter(id=_id)
-        orm.update(task_id = task.task_id)
+        group_name = data.get('group_name')
+        tasks.run_tasks.delay(group_name)
+
         return HttpResponse(json.dumps({'code':0,'msg':'操作成功'}),content_type="application/json")
+    except Exception as e:
+        return HttpResponse(json.dumps({'code': 1, 'msg': e}), content_type="application/json")
+
+
+
+@login_required
+def task_table_group_kill(request):
+    try:
+        data = json.loads(request.body)
+        _id = data.get('id')
+        orm_group = task_group.objects.get(id=_id)
+        task_now = orm_group.task_now
+        task_id = orm_group.task_id
+        orm = single_tasks.objects.get(task_name=task_now)
+        name = orm.task_name
+        _type = orm.task_type
+
+
+        revoke(task_id, terminate=True)
+        orm_group.status = '已终止'
+        orm_group.save()
+
+        host = orm.target.split(':')[0]
+        port = orm.target.split(':')[1]
+        tmp_file = f'/tmp/{name}{type_dict[_type]["suffix"]}'
+        p = subprocess.Popen(f'ssh {host} -p {port} "ps aux|grep {tmp_file}' + '''|grep -v grep"|awk '{print $2}' ''', shell=True, stdout=subprocess.PIPE)
+        p.wait()
+        stdout,stderr = p.communicate()
+        if stdout:
+            pids = ' '.join(stdout.decode().strip().split('\n'))
+            subprocess.call(f'ssh {host} -p {port} "kill -9 {pids}"', shell=True)
+        else:
+            orm.status = '已终止'
+            orm.save()
+        if orm.task_type == 'k8s-shell':
+            orm.pods_name = ''
+            orm.save()
+            task_name = re.search(r'--name (.*?) ', orm.task_cmd).group(1)
+            def thread_run():
+                p = subprocess.Popen(f"ssh {host} -p {port} kubectl get pods |grep {task_name}" + "|grep driver|awk '{print $1}'",
+                                     shell=True, stdout=subprocess.PIPE)
+                p.wait()
+                stdout, stderr = p.communicate()
+                if stdout:
+                    for i in stdout.decode().strip().split('\n'):
+                        subprocess.call(f'ssh {host} -p {port} "kubectl delete pods {i}"', shell=True)
+            threading.Thread(target=thread_run).start()
+
+        return HttpResponse(json.dumps({'code':0,'msg':'操作成功'}),content_type="application/json")
+    except Exception as e:
+        return HttpResponse(json.dumps({'code': 1, 'msg': e}), content_type="application/json")
+
+
+
+@login_required
+def task_schedule_table(request):
+    # flag = check_permission(u'nagios',request.user.username)
+    # if flag < 1:
+    #     return render(request,'public/no_passing.html')
+    path = request.path.split('/')[1]
+    return render(request, 'task_schedule/task_schedule.html', {'user':request.user.username,
+                                                                 'path1':'task_schedule',
+                                                                 'path2':path,
+                                                                 'page_name1':u'任务调度',
+                                                                 'page_name2':'计划任务'})
+
+
+
+@login_required
+def task_schedule_data(request):
+    orm = PeriodicTask.objects.all()
+    tableData = []
+    for i in orm:
+        if i.name == 'celery.backend_cleanup':
+            continue
+        if i.task == 'task_schedule.tasks.run_task':
+            task_type = '单任务'
+        elif i.task == 'task_schedule.tasks.run_tasks':
+            task_type = '任务组'
+        else:
+            task_type = ''
+        if not i.args == '[]':
+            task_name = literal_eval(i.args)[0]
+        else:
+            task_name = ''
+        orm_cron = CrontabSchedule.objects.get(id=i.crontab_id)
+        crontab = f'{orm_cron.minute} {orm_cron.hour} {orm_cron.day_of_week} {orm_cron.day_of_month} {orm_cron.month_of_year}'
+        # if i.enabled:
+        #     enabled = '启用'
+        # else:
+        #     enabled = '关闭'
+        tableData.append({
+            'id': i.id,
+            'name': i.name,
+            'task_type': task_type,
+            'task_name': task_name,
+            'enabled': i.enabled,
+            'last_run_at': str(i.last_run_at).split('.')[0],
+            'crontab': crontab
+        })
+    return HttpResponse(json.dumps({'code':-1,'tableData':tableData}),content_type="application/json")
+
+
+
+@login_required
+def task_schedule_save(request):
+    try:
+        data = json.loads(request.body)
+        _id = data.get('id')
+        name = data.get('name')
+        crontab = data.get('crontab')
+        task_type = data.get('task_type')
+        task_name = data.get('task_name')
+        # 处理crontab表格式
+        if len(crontab.strip().split()) != 5:
+            return HttpResponse(json.dumps({'code': 1, 'msg': 'crontab格式错误'}), content_type="application/json")
+        else:
+            minute, hour, day_of_week, day_of_month, month_of_year = crontab.strip().split()
+        orm_crontab = CrontabSchedule.objects.filter(Q(minute=minute) &
+                                                     Q(hour=hour) &
+                                                     Q(day_of_week=day_of_week) &
+                                                     Q(day_of_month=day_of_month) &
+                                                     Q(month_of_year=month_of_year))
+        if orm_crontab:
+            crontab_id = orm_crontab[0].id
+        else:
+            orm_crontab = CrontabSchedule(minute=minute,
+                                          hour=hour,
+                                          day_of_week=day_of_week,
+                                          day_of_month=day_of_month,
+                                          month_of_year=month_of_year,
+                                          timezone=TIME_ZONE)
+            orm_crontab.save()
+            crontab_id = orm_crontab.id
+        # 处理任务表格式
+        if task_type == '单任务':
+            task = 'task_schedule.tasks.run_task'
+        elif task_type == '任务组':
+            task = 'task_schedule.tasks.run_tasks'
+        args = f'["{task_name}"]'
+        # 添加和编辑
+        if not _id:
+            orm = PeriodicTask(name=name,
+                         task=task,
+                         args=args,
+                         crontab_id=crontab_id)
+
+        else:
+            orm = PeriodicTask.objects.get(id=_id)
+            orm.name = name
+            orm.task = task
+            orm.args = args
+            orm.crontab_id = crontab_id
+        orm.save()
+        return HttpResponse(json.dumps({'code':0,'msg':'操作成功'}),content_type="application/json")
+    except Exception as e:
+        return HttpResponse(json.dumps({'code': 1, 'msg': e}), content_type="application/json")
+
+
+
+@login_required
+def task_schedule_switch(request):
+    try:
+        data = json.loads(request.body)
+        _id = data.get('id')
+        enabled = data.get('enabled')
+        orm = PeriodicTask.objects.get(id=_id)
+        orm.enabled = enabled
+        orm.save()
+        return HttpResponse(json.dumps({'code': 0, 'msg': '操作成功'}), content_type="application/json")
+    except Exception as e:
+        return HttpResponse(json.dumps({'code': 1, 'msg': e}), content_type="application/json")
+
+
+
+@login_required
+def task_schedule_del(request):
+    try:
+        data = json.loads(request.body)
+        _id = data.get('id')
+        orm = PeriodicTask.objects.get(id=_id)
+        orm_crontab = CrontabSchedule.objects.get(id=orm.crontab_id)
+        orm_crontab.delete()
+        orm.delete()
+        return HttpResponse(json.dumps({'code': 0, 'msg': '操作成功'}), content_type="application/json")
     except Exception as e:
         return HttpResponse(json.dumps({'code': 1, 'msg': e}), content_type="application/json")

@@ -24,3 +24,4 @@ class task_group(models.Model):
     task_id = models.CharField(max_length=64, default='')
     create_time = models.DateTimeField(auto_now_add=True)
     last_run_time = models.DateTimeField(null=True)
+

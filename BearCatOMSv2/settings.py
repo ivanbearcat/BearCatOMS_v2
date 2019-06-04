@@ -40,6 +40,7 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
     'werkzeug_debugger_runserver',
     'django_extensions',
+    'django_celery_beat',
     'django_celery_results',
     'server_info',
     'operation',
@@ -157,7 +158,11 @@ logger = logging.getLogger("fileLogger")
 
 
 # celery settings
-# 守护进程启动 celery multi start BearCatOMS -A BearCatOMSv2 -l info --logfile=./celery.log
+# [启动beat] celery beat -A BearCatOMSv2 -l info --scheduler django_celery_beat.schedulers:DatabaseScheduler
+# [守护进程启动Worker] celery multi start BearCatOMS -A BearCatOMSv2 -l info --logfile=./celery.log
 CELERY_BROKER_URL = 'redis://127.0.0.1:6379/0'
 CELERY_RESULT_BACKEND = 'django-db'
 CELERY_TASK_SERIALIZER = 'json'
+# CELERY_ENABLE_UTC = False
+CELERY_TIMEZONE = TIME_ZONE
+DJANGO_CELERY_BEAT_TZ_AWARE = False

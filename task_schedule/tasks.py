@@ -12,8 +12,8 @@ import threading
 from ast import literal_eval
 
 
-@shared_task
-def run_task(task_name):
+@shared_task(bind=True)
+def run_task(self, task_name):
     orm = single_tasks.objects.get(task_name=task_name)
     name = orm.task_name
     _type = orm.task_type
@@ -35,7 +35,10 @@ def run_task(task_name):
     if code == 0:
         orm.last_run_time = str(datetime.datetime.now())
         orm.status = '运行中'
+        if self.request.id:
+            orm.task_id = self.request.id
         orm.save()
+
 
     def k8s_call_back(orm, name, host, port):
         # 从远程机器的shell日志判断Running状态，并获取pods名入库
@@ -68,16 +71,19 @@ def run_task(task_name):
     port = orm.target.split(':')[1]
 
 
-@shared_task
-def run_tasks(gtoup_id):
-    orm = task_group.objects.get(id=gtoup_id)
+
+
+@shared_task(bind=True)
+def run_tasks(self, group_name):
+    orm = task_group.objects.get(group_name=group_name)
     task_names = literal_eval(orm.group_content)
     orm.last_run_time = datetime.datetime.now()
     orm.status = '运行中'
+    orm.task_id = self.request.id
     orm.save()
     time_begin = time.time()
     for i in task_names:
-        orm = task_group.objects.get(id=gtoup_id)
+        orm = task_group.objects.get(group_name=group_name)
         orm.task_now = i
         orm.save()
         run_task(i)
@@ -86,16 +92,19 @@ def run_tasks(gtoup_id):
         host = orm.target.split(':')[0]
         port = int(orm.target.split(':')[1])
         while 1:
-            p = subprocess.Popen(f'ssh {host} -p {port} "tail -1 /tmp/{orm.task_name}.log"', shell=True,
-                                 stdout=subprocess.PIPE)
-            p.wait()
-            stdout, stderr = p.communicate()
-            stdout_list = stdout.decode().strip().split()
-            if len(stdout_list) == 3 and stdout_list[0] == 'done':
+            try:
+                p = subprocess.Popen(f'ssh {host} -p {port} "tail -1 /tmp/{orm.task_name}.log"', shell=True,
+                                     stdout=subprocess.PIPE)
+                p.wait()
+                stdout, stderr = p.communicate()
+                stdout_list = stdout.decode().strip().split()
+                if len(stdout_list) == 3 and stdout_list[0] == 'done':
+                    break
+                else:
+                    time.sleep(5)
+            except Exception:
                 break
-            else:
-                time.sleep(5)
-    orm = task_group.objects.get(id=gtoup_id)
+    orm = task_group.objects.get(group_name=group_name)
     orm.status = '已完成'
     orm.duration = str(time.time() - time_begin)
     orm.save()

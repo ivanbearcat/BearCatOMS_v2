@@ -37,62 +37,49 @@
         style="width: 100%">
         <el-table-column
           sortable
-          label="任务组名"
-          prop="group_name">
+          label="描述"
+          min-width="200"
+          prop="name">
         </el-table-column>
         <el-table-column
           sortable
-          label="任务组描述"
-          prop="group_desc">
+          label="运行计划"
+          min-width="100"
+          prop="crontab">
         </el-table-column>
         <el-table-column
           sortable
-          label="内容"
-          min-width="400"
-          prop="group_content">
+          label="任务类型"
+          min-width="100"
+          prop="task_type">
+        </el-table-column>
+        <el-table-column
+          sortable
+          label="任务名称"
+          min-width="200"
+          prop="task_name">
+        </el-table-column>
+        <el-table-column
+          sortable
+          label="最后运行"
+          min-width="200"
+          prop="last_run_at">
+        </el-table-column>
+        <el-table-column
+          sortable
+          label="启用状态"
+          min-width="100"
+          prop="enabled">
             <template slot-scope="scope">
-                <el-tag
-                  v-for="item in scope.row.group_content"
-                  type="info"
-                  disable-transitions>{{item}}</el-tag>
+                <el-switch
+                  v-model="scope.row.enabled"
+                  active-color="#13ce66"
+                  @change="switch_handle(scope.row)">
+                </el-switch>
             </template>
         </el-table-column>
         <el-table-column
-          sortable
-          label="当前任务"
-          width="181"
-          prop="task_now">
-        </el-table-column>
-        <el-table-column
-          sortable
-          label="总耗时"
-          prop="duration">
-        </el-table-column>
-        <el-table-column
-          sortable
-          label="状态"
-          prop="status">
-            <template slot-scope="scope">
-                <el-tag
-                  :type="select_color(scope.row)"
-                  disable-transitions>{{scope.row.status}}</el-tag>
-            </template>
-        </el-table-column>
-        <el-table-column
-          sortable
-          width="170"
-          label="创建时间"
-          prop="create_time">
-        </el-table-column>
-        <el-table-column
-          sortable
-          width="170"
-          label="最后执行时间"
-          prop="last_run_time"
-          width="">
-        </el-table-column>
-        <el-table-column
-          width="359"
+          min-width="150"
           label="操作">
           <template slot-scope="scope">
             <el-button
@@ -103,23 +90,11 @@
               size="mini"
               type="danger"
               @click="handleDelete(scope.$index, scope.row)">删除</el-button>
-            <el-button
-              size="mini"
-              type="success"
-              @click="handleRun(scope.$index, scope.row)">运行</el-button>
-            <el-button
-              size="mini"
-              type="danger"
-              @click="handleKill(scope.$index, scope.row)">终止</el-button>
-            <el-button
-              size="mini"
-              type="info"
-              @click="handleLog(scope.$index, scope.row)">日志</el-button>
           </template>
         </el-table-column>
       </el-table>
         <el-pagination
-          background
+          backgroundd
           @size-change="handleSizeChange"
           @current-change="handleCurrentChange"
           :current-page="currentPage"
@@ -130,32 +105,42 @@
         </el-pagination>
 
     <!-- 对话框 -->
-        <el-dialog title="添加任务组"
+        <el-dialog title="添加计划任务"
                    :visible.sync="dialogFormVisible"
                    :append-to-body="true"
                    :before-close="handleClose">
           <el-form :model="form">
-            <el-form-item label="任务组名称" :label-width="formLabelWidth">
+            <el-form-item label="描述" :label-width="formLabelWidth">
                 <el-col :span="7">
-                    <el-input v-model="form.group_name" autocomplete="on"></el-input>
+                    <el-input v-model="form.name" autocomplete="on"></el-input>
                 </el-col>
             </el-form-item>
-            <el-form-item label="任务组描述" :label-width="formLabelWidth">
+            <el-form-item label="运行计划" :label-width="formLabelWidth">
                 <el-col :span="7">
-                    <el-input v-model="form.group_desc" autocomplete="on"></el-input>
+                    <el-input v-model="form.crontab" autocomplete="on"></el-input>
                 </el-col>
             </el-form-item>
-            <el-form-item label="任务组内容" :label-width="formLabelWidth">
+            <el-form-item label="任务类型" :label-width="formLabelWidth">
                 <el-col :span="7">
-                <el-select v-model="form.group_content"
-                           multiple
+                <el-select v-model="form.task_type"
                            clearable
                            filterable
-                           value-key="task_name"
+                           @change="select_handle"
+                           placeholder="请选择任务类型">
+                    <el-option label="单任务" value="单任务"></el-option>
+                    <el-option label="任务组" value="任务组"></el-option>
+                </el-select>
+                </el-col>
+            </el-form-item>
+            <el-form-item label="任务" :label-width="formLabelWidth">
+                <el-col :span="7">
+                <el-select v-model="form.task_name"
+                           clearable
+                           filterable
                            placeholder="请选择多个单任务">
                     <el-option v-for="item in tableData_single"
-                               :label="item.task_name"
-                               :value="item.task_name">
+                               :label="item.task_name ? item.task_name : item.group_name"
+                               :value="item.task_name ? item.task_name : item.group_name">
                     </el-option>
                 </el-select>
                 </el-col>
@@ -167,28 +152,6 @@
           </div>
         </el-dialog>
 
-        <el-dialog
-          title="日志"
-          lock-scroll="false"
-          :visible.sync="dialogVisible"
-          :before-close="logClose"
-          width="50%">
-            <el-form>
-                <el-form-item label="" :label-width="10">
-                    <el-col :span="24">
-                        <el-input
-                          ref="log_bar"
-                          resize="none"
-                          rows="24"
-                          type="textarea"
-                          placeholder=""
-                          readonly
-                          v-model="log">
-                        </el-input>
-                    </el-col>
-                </el-form-item>
-            </el-form>
-        </el-dialog>
 
     </div>
 </template>
@@ -243,9 +206,10 @@ wget https://unpkg.com/element-ui/lib/theme-chalk/fonts/element-icons.woff
                         log: '',
                         form: {
                           id: '',
-                          group_name: '',
-                          group_desc: '',
-                          group_content: []
+                          name: '',
+                          crontab: '',
+                          task_type: '',
+                          task_name: ''
                         },
                         formLabelWidth: '25%'
                     }
@@ -269,7 +233,7 @@ wget https://unpkg.com/element-ui/lib/theme-chalk/fonts/element-icons.woff
                     search(keywords) {
                         //数据搜索
                         let newList = this.tableData.filter(item=>{
-                            if(item.group_name.includes(keywords)){
+                            if(item.name.includes(keywords)){
                                 return true
                             }
                         });
@@ -396,6 +360,8 @@ wget https://unpkg.com/element-ui/lib/theme-chalk/fonts/element-icons.woff
                             if (response.data.code == -1) {
                                 if (url == '/task_table_data/'){
                                     _this.tableData_single = response.data.tableData;
+                                }else if (url == '/task_table_group_data/') {
+                                    _this.tableData_single = response.data.tableData;
                                 }else {
                                     _this.tableData = response.data.tableData;
                                     if (data) {
@@ -405,7 +371,7 @@ wget https://unpkg.com/element-ui/lib/theme-chalk/fonts/element-icons.woff
                                 }
                             }
                             if (response.data.code == 0) {
-                                _this.post_data('/task_table_group_data/',{})
+                                _this.post_data('/task_schedule_data/',{})
                                 _this.notify(response.data.code, response.data.msg)
                             }
                             if (response.data.code == 1) {
@@ -416,13 +382,29 @@ wget https://unpkg.com/element-ui/lib/theme-chalk/fonts/element-icons.woff
                                 _this.notify(1, error)
                             })
                     },
+                    switch_handle(row){
+                        //状态开关按钮
+                        data = {
+                            id: row.id,
+                            enabled: row.enabled
+                        };
+                        this.post_data('/task_schedule_switch/',data)
+                    },
+                    select_handle(entry){
+                        if (entry == '单任务'){
+                            this.post_data('/task_table_data/',{})
+                        }else if (entry == '任务组'){
+                            this.post_data('/task_table_group_data/',{})
+                        }
+                    },
                     handleAdd(index, row) {
                         //编辑按钮
                         this.form = {
                           id: '',
-                          group_name: '',
-                          group_desc: '',
-                          group_content: ''
+                          name: '',
+                          crontab: '',
+                          task_type: '',
+                          task_name: ''
                         };
                         this.dialogFormVisible = true
                     },
@@ -430,9 +412,10 @@ wget https://unpkg.com/element-ui/lib/theme-chalk/fonts/element-icons.woff
                         //编辑按钮
                         this.form = {
                           id: row.id,
-                          group_name: row.group_name,
-                          group_desc: row.group_desc,
-                          group_content: row.group_content
+                          name: row.name,
+                          crontab: row.crontab,
+                          task_type: row.task_type,
+                          task_name: row.task_name
                         };
                         this.dialogFormVisible = true
                     },
@@ -441,54 +424,26 @@ wget https://unpkg.com/element-ui/lib/theme-chalk/fonts/element-icons.woff
                         this.$confirm('确认删除？')
                           .then(_ => {
                             data = { id: row.id };
-                            this.post_data('/task_table_group_del/',data)
+                            this.post_data('/task_schedule_del/',data)
                           })
                           .catch(_ => {});
-                    },
-                    handleRun(index, row) {
-                        //删除按钮
-                        this.$confirm('确认运行？')
-                          .then(_ => {
-                            data = { id: row.id };
-                            this.post_data('/task_table_group_run/',data)
-                          })
-                          .catch(_ => {});
-                    },
-                    handleKill(index, row) {
-                        //删除按钮
-                        this.$confirm('确认终止？')
-                          .then(_ => {
-                            data = { id: row.id };
-                            this.post_data('/task_table_kill/',data)
-                          })
-                          .catch(_ => {});
-                    },
-                    handleLog(index, row) {
-                        //删除按钮
-                        this.log = '';
-                        this.ws(row.task_name, row.pods_name, row.id);
-                        this.dialogVisible = true
-                    },
-                    logClose(){
-                        this.webSocket.close();
-                        this.dialogVisible = false
                     },
                     save() {
                         //添加按钮
                         let data = {
                             id: this.form.id,
-                            group_name: this.form.group_name,
-                            group_desc: this.form.group_desc,
-                            group_content: this.form.group_content
+                            name: this.form.name,
+                            crontab: this.form.crontab,
+                            task_type: this.form.task_type,
+                            task_name: this.form.task_name
                         };
-                        this.post_data('/task_table_group_save/',data);
+                        this.post_data('/task_schedule_save/',data);
                         this.dialogFormVisible = false
                     }
                 },
                 created(){
                     //数据函数加载完成后
-                    this.post_data('/task_table_group_data/',{})
-                    this.post_data('/task_table_data/',{})
+                    this.post_data('/task_schedule_data/',{})
                 },
                 mounted(){
                     //网页完全显示后
@@ -496,7 +451,7 @@ wget https://unpkg.com/element-ui/lib/theme-chalk/fonts/element-icons.woff
                     this.changeTableSort({prop: 'create_time', order: 'descending'});
                     let _this = this;
                     setInterval(function() {
-                        _this.post_data('/task_table_group_data/',{})
+                        _this.post_data('/task_schedule_data/',{})
                     },5000);
                 },
                 store: store
