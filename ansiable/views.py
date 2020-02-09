@@ -83,20 +83,24 @@ def ansiable_playbook_config_edit(request):
     config_data = data.get('config_data')
     backup_file = os.path.join(os.path.dirname(config_file), '.' + os.path.basename(config_file))
     if config_data:
-        config_data = config_data.replace('"', '\\"').replace("'", "\\'")
+        # config_data = config_data.replace('"', '\\"').replace("'", "\\'")
+        # config_data = config_data.replace('"', '\\"').replace("'", "\\'").replace('$', '\\$')
+        with open('/tmp/tmpfile', 'w') as f:
+            f.write(config_data)
         p = subprocess.Popen(f'''
-            ssh {ansiable_host} -p {ansiable_port} "unalias cp; cp -a {config_file} {backup_file}; /usr/bin/echo '{config_data}' > {config_file}"
-        ''', shell=True, stdout=subprocess.PIPE)
-
-        # p = subprocess.Popen(f'''
-        #     ssh {ansiable_host} -p {ansiable_port} "unalias cp; cp -a {config_file} {backup_file}; /usr/bin/cat << EOF > {config_file}
-        #     {config_data}"
-        # ''', shell=True, stdout=subprocess.PIPE)
-        p.wait()
+                    ssh {ansiable_host} -p {ansiable_port} "unalias cp; cp -a {config_file} {backup_file}"''', shell=True, stdout=subprocess.PIPE)
+        while p.poll() != None:
+            time.sleep(0.1)
+        p = subprocess.Popen(f'''
+                    scp -P {ansiable_port} /tmp/tmpfile {ansiable_host}:{config_file}
+                ''', shell=True, stdout=subprocess.PIPE)
+        while p.poll() != None:
+            time.sleep(0.1)
         # 记录日志
         p = subprocess.Popen(f'ssh {ansiable_host} -p {ansiable_port} "/usr/bin/diff {config_file} {backup_file}"',
                              shell=True, stdout=subprocess.PIPE)
-        p.wait()
+        while p.poll() != None:
+            time.sleep(0.1)
         diff_result = p.stdout.read().decode().strip()
         operation = f'修改配置文件 {config_file} 修改内容 [diff]: {diff_result}'
         orm_log = logs(name=request.user.username,
@@ -108,11 +112,13 @@ def ansiable_playbook_config_edit(request):
     else:
         p = subprocess.Popen(f'ssh {ansiable_host} -p {ansiable_port} "/usr/bin/cat {config_file}"',
                              shell=True, stdout=subprocess.PIPE)
-        code = p.wait()
+        while p.poll() != None:
+            time.sleep(0.1)
+        result = p.stdout.read().decode().strip()
+        code = p.returncode
         if code:
             return HttpResponse(json.dumps({'code': 1, 'msg': f'code: {code} 文件不存在或无法打开'}),
                                 content_type='application/json;charset = utf-8')
-        result = p.stdout.read().decode().strip()
         return HttpResponse(json.dumps({'code': -2, 'result': result}), content_type='application/json;charset = utf-8')
 
 
@@ -139,7 +145,10 @@ def ansiable_playbook_change_branch(request):
     p = subprocess.Popen(f'''
         ssh {ansiable_host} -p {ansiable_port} "sed -i 's#branch: {branch_now}#branch: {change_branch}#' {vars_files}"
     ''',shell=True, stdout=subprocess.PIPE)
-    code = p.wait()
+    while p.poll() != None:
+        time.sleep(0.1)
+    p.communicate()
+    code = p.returncode
     if code:
         return HttpResponse(json.dumps({'code': 1, 'msg': f'code: {code} 文件不存在或执行出错'}),
                             content_type='application/json;charset = utf-8')

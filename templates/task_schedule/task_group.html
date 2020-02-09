@@ -29,6 +29,7 @@
           placeholder="输入关键字搜索"></el-input></el-col>
 
       <el-table
+        v-loading="loading"
         :data="searchData(keywords)"
         @sort-change="changeTableSort"
         border
@@ -243,7 +244,8 @@ wget https://unpkg.com/element-ui/lib/theme-chalk/fonts/element-icons.woff
                           group_desc: '',
                           group_content: []
                         },
-                        formLabelWidth: '25%'
+                        formLabelWidth: '25%',
+                        loading: false
                     }
                 },
                 ready: function () {
@@ -401,11 +403,13 @@ wget https://unpkg.com/element-ui/lib/theme-chalk/fonts/element-icons.woff
                                 }
                             }
                             if (response.data.code == 0) {
-                                _this.post_data('/task_table_group_data/',{})
-                                _this.notify(response.data.code, response.data.msg)
+                                _this.post_data('/task_table_group_data/',{});
+                                _this.notify(response.data.code, response.data.msg);
+                                _this.loading = false
                             }
                             if (response.data.code == 1) {
-                                _this.notify(response.data.code, response.data.msg)
+                                _this.notify(response.data.code, response.data.msg);
+                                _this.loading = false
                             }
                         })
                             .catch(function (error) {
@@ -478,7 +482,8 @@ wget https://unpkg.com/element-ui/lib/theme-chalk/fonts/element-icons.woff
                             group_content: this.form.group_content
                         };
                         this.post_data('/task_table_group_save/',data);
-                        this.dialogFormVisible = false
+                        this.dialogFormVisible = false;
+                        this.loading = true
                     }
                 },
                 created(){

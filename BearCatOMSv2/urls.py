@@ -25,6 +25,7 @@ from monitor.views import *
 from audit.views import *
 from task_schedule.views import *
 from ansiable.views import *
+from gitlab_hook.views import *
 
 
 urlpatterns = [
@@ -43,6 +44,9 @@ urlpatterns = [
     url(r'^server_info_data/', server_info_data),
     url(r'^server_info_save/', server_info_save),
     url(r'^server_info_del/', server_info_del),
+    url(r'^server_info_table_new/', server_info_table_new),
+    url(r'^server_table_data/', server_table_data),
+    url(r'^server_table_save/', server_table_save),
     url(r'^domain_name_CRT_table/', domain_name_CRT_table),
     url(r'^domain_name_CRT_data/', domain_name_CRT_data),
     url(r'^cmd_template/', cmd_template),
@@ -81,4 +85,5 @@ urlpatterns = [
     url(r'^ansiable_playbook_change_branch/', ansiable_playbook_change_branch),
     url(r'^ansiable_playbook_log/', ansiable_playbook_log),
     url(r'^ansiable_playbook_log_data/', ansiable_playbook_log_data),
+    url(r'^web_hook_api/', web_hook_api),
 ]

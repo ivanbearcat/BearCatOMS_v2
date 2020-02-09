@@ -64,7 +64,8 @@ def log_web_socket(request):
         else:
             p = subprocess.Popen(f'''ssh {host} -p {port} "cat /tmp/{message['name']}.log"''', shell=True,
                                  stdout=subprocess.PIPE)
-        p.wait()
+        while p.poll() != None:
+            time.sleep(0.1)
         stdout = p.stdout.read().decode()
         if stdout:
             request.websocket.send(json.dumps(stdout))
@@ -129,7 +130,8 @@ def task_table_data(request):
             host = i.target.split(':')[0]
             port = i.target.split(':')[1]
             p = subprocess.Popen(f'ssh {host} -p {port} "tail -1 /tmp/{i.task_name}.log"', shell=True, stdout=subprocess.PIPE)
-            p.wait()
+            while p.poll() != None:
+                time.sleep(0.1)
             stdout, stderr = p.communicate()
             stdout_list = stdout.decode().strip().split()
             if  len(stdout_list) == 3 and stdout_list[0] == 'done':
@@ -346,7 +348,8 @@ def task_table_kill(request):
         port = orm.target.split(':')[1]
         tmp_file = f'/tmp/{name}{type_dict[_type]["suffix"]}'
         p = subprocess.Popen(f'ssh {host} -p {port} "ps aux|grep {tmp_file}' + '''|grep -v grep"|awk '{print $2}' ''', shell=True, stdout=subprocess.PIPE)
-        p.wait()
+        while p.poll() != None:
+            time.sleep(0.1)
         stdout,stderr = p.communicate()
         if stdout:
             pids = ' '.join(stdout.decode().strip().split('\n'))
@@ -357,11 +360,12 @@ def task_table_kill(request):
         if orm.task_type == 'k8s-shell':
             orm.pods_name = ''
             orm.save()
-            task_name = re.search(r'--name (.*?) ', orm.task_cmd).group(1)
+            task_name = re.search(r'--name (.*?) ', orm.task_cmd).group(1).lower()
             def thread_run():
-                p = subprocess.Popen(f"ssh {host} -p {port} kubectl get pods |grep {task_name}" + "|grep driver|awk '{print $1}'",
+                p = subprocess.Popen(f"ssh {host} -p {port} kubectl get pods |grep {task_name}" + "|egrep '(driver)?'|egrep '(Running|Pending)'|awk '{print $1}'",
                                      shell=True, stdout=subprocess.PIPE)
-                p.wait()
+                while p.poll() != None:
+                    time.sleep(0.1)
                 stdout, stderr = p.communicate()
                 if stdout:
                     for i in stdout.decode().strip().split('\n'):
@@ -481,7 +485,8 @@ def task_table_group_kill(request):
         port = orm.target.split(':')[1]
         tmp_file = f'/tmp/{name}{type_dict[_type]["suffix"]}'
         p = subprocess.Popen(f'ssh {host} -p {port} "ps aux|grep {tmp_file}' + '''|grep -v grep"|awk '{print $2}' ''', shell=True, stdout=subprocess.PIPE)
-        p.wait()
+        while p.poll() != None:
+            time.sleep(0.1)
         stdout,stderr = p.communicate()
         if stdout:
             pids = ' '.join(stdout.decode().strip().split('\n'))
@@ -492,11 +497,12 @@ def task_table_group_kill(request):
         if orm.task_type == 'k8s-shell':
             orm.pods_name = ''
             orm.save()
-            task_name = re.search(r'--name (.*?) ', orm.task_cmd).group(1)
+            task_name = re.search(r'--name (.*?) ', orm.task_cmd).group(1).lower()
             def thread_run():
-                p = subprocess.Popen(f"ssh {host} -p {port} kubectl get pods |grep {task_name}" + "|grep driver|awk '{print $1}'",
+                p = subprocess.Popen(f"ssh {host} -p {port} kubectl get pods |grep {task_name}" + "|grep driver|grep Running|awk '{print $1}'",
                                      shell=True, stdout=subprocess.PIPE)
-                p.wait()
+                while p.poll() != None:
+                    time.sleep(0.1)
                 stdout, stderr = p.communicate()
                 if stdout:
                     for i in stdout.decode().strip().split('\n'):

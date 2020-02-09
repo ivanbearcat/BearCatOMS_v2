@@ -20,8 +20,7 @@
 <template id="tmp1">
     <div>
     <!-- 数据表 -->
-      <el-col :span="6"><el-button type="Success" size="mini" @click="handleAdd">添加</el-button></el-col>
-      <el-col :span="4" :offset="14"><el-input
+      <el-col :span="4" :offset="20"><el-input
           clearable
           v-model="keywords"
           size="mini"
@@ -29,7 +28,6 @@
           placeholder="输入关键字搜索"></el-input></el-col>
 
       <el-table
-        v-loading="loading"
         :data="searchData(keywords)"
         @sort-change="changeTableSort"
         border
@@ -38,55 +36,124 @@
         style="width: 100%">
         <el-table-column
           sortable
-          label="任务名"
-          prop="task_name">
+          width="120"
+          label="所属项目1"
+          prop="class_1">
         </el-table-column>
         <el-table-column
           sortable
-          label="任务描述"
-          prop="task_desc">
+          width="120"
+          label="所属项目2"
+          prop="class_2">
         </el-table-column>
         <el-table-column
           sortable
-          label="任务类型"
-          prop="task_type">
+          width="120"
+          label="所属项目3"
+          prop="class_3">
         </el-table-column>
         <el-table-column
           sortable
-          label="目标主机"
-          width="181"
-          prop="target">
+          width="150"
+          label="登录IP"
+          prop="login_ip">
         </el-table-column>
         <el-table-column
           sortable
-          label="耗时"
-          prop="duration">
+          width="110"
+          label="SSH端口"
+          prop="ssh_port">
         </el-table-column>
         <el-table-column
           sortable
-          label="状态"
-          prop="status">
-            <template slot-scope="scope">
-                <el-tag
-                  :type="select_color(scope.row)"
-                  disable-transitions>{{scope.row.status}}</el-tag>
-            </template>
+          width="150"
+          label="外网IP"
+          prop="external_IP">
         </el-table-column>
         <el-table-column
           sortable
-          width="170"
-          label="创建时间"
-          prop="create_time">
+          width="150"
+          label="内网IP_1"
+          prop="inner_ip_1">
         </el-table-column>
         <el-table-column
           sortable
-          width="170"
-          label="最后执行时间"
-          prop="last_run_time"
+          width="150"
+          label="内网IP_2"
+          prop="inner_ip_2">
+        </el-table-column>
+        <el-table-column
+          sortable
+          width="200"
+          label="root密码"
+          prop="root_password"
           width="">
         </el-table-column>
         <el-table-column
-          width="359"
+          sortable
+          width="200"
+          label="ubuntu密码"
+          prop="ubuntu_password">
+        </el-table-column>
+        <el-table-column
+          sortable
+          width="255"
+          label="数据库权限"
+          prop="db_password">
+        </el-table-column>
+        <el-table-column
+          sortable
+          width="250"
+          label="功能"
+          prop="description">
+        </el-table-column>
+        <el-table-column
+          sortable
+          width="140"
+          label="DELL管理IP"
+          prop="manage_ip">
+        </el-table-column>
+        <el-table-column
+          sortable
+          width="110"
+          label="服务器ID"
+          prop="server_id">
+        </el-table-column>
+        <el-table-column
+          sortable
+          width="250"
+          label="备注1"
+          prop="comment_1">
+        </el-table-column>
+        <el-table-column
+          sortable
+          width="250"
+          label="备注2"
+          prop="comment_2">
+        </el-table-column>
+        <el-table-column
+          sortable
+          width="120"
+          label="机房"
+          prop="IDC">
+        </el-table-column>
+        <el-table-column
+          sortable
+          width="120"
+          label="机柜"
+          prop="position"
+          width="">
+        </el-table-column>
+        <el-table-column
+          sortable
+          width="100"
+          label="使用人"
+          prop="owner"
+          width="">
+        </el-table-column>
+        <el-table-column
+          width="150"
+          fixed="right"
           label="操作">
           <template slot-scope="scope">
             <el-button
@@ -97,18 +164,6 @@
               size="mini"
               type="danger"
               @click="handleDelete(scope.$index, scope.row)">删除</el-button>
-            <el-button
-              size="mini"
-              type="success"
-              @click="handleRun(scope.$index, scope.row)">运行</el-button>
-            <el-button
-              size="mini"
-              type="danger"
-              @click="handleKill(scope.$index, scope.row)">终止</el-button>
-            <el-button
-              size="mini"
-              type="info"
-              @click="handleLog(scope.$index, scope.row)">日志</el-button>
           </template>
         </el-table-column>
       </el-table>
@@ -124,43 +179,104 @@
         </el-pagination>
 
     <!-- 对话框 -->
-        <el-dialog title="添加任务"
+        <el-dialog title="主机条目"
                    :visible.sync="dialogFormVisible"
                    :append-to-body="true"
                    :before-close="handleClose">
           <el-form :model="form">
-            <el-form-item label="任务名称" :label-width="formLabelWidth">
+            <el-form-item label="所属项目1" :label-width="formLabelWidth">
                 <el-col :span="7">
-                    <el-input v-model="form.task_name" autocomplete="on"></el-input>
+                    <el-input v-model="form.class_1" autocomplete="on"></el-input>
                 </el-col>
             </el-form-item>
-            <el-form-item label="任务描述" :label-width="formLabelWidth">
+            <el-form-item label="所属项目2" :label-width="formLabelWidth">
                 <el-col :span="7">
-                    <el-input v-model="form.task_desc" autocomplete="on"></el-input>
+                    <el-input v-model="form.class_2" autocomplete="on"></el-input>
                 </el-col>
             </el-form-item>
-            <el-form-item label="任务类型" :label-width="formLabelWidth">
-                <el-select v-model="form.task_type" placeholder="请选择任务类型">
-                    <el-option label="k8s-shell" value="k8s-shell"></el-option>
-                    <el-option label="shell" value="shell"></el-option>
-                    <el-option label="http" value="http"></el-option>
-                    <el-option label="python" value="python"></el-option>
-                </el-select>
+            <el-form-item label="所属项目3" :label-width="formLabelWidth">
+                <el-col :span="7">
+                    <el-input v-model="form.class_3" autocomplete="on"></el-input>
+                </el-col>
             </el-form-item>
-            <el-form-item label="目标主机" :label-width="formLabelWidth">
-                <el-select v-model="form.target" placeholder="请选择目标主机">
-                    <el-option label="113.107.166.14:15231" value="113.107.166.14:15231"></el-option>
-                </el-select>
+            <el-form-item label="登录IP" :label-width="formLabelWidth">
+                <el-col :span="7">
+                    <el-input v-model="form.login_ip" autocomplete="on"></el-input>
+                </el-col>
             </el-form-item>
-            <el-form-item label="任务内容" :label-width="formLabelWidth">
-                <el-col :span="18">
-                    <el-input
-                      :autosize="{ minRows: 3 }"
-                      resize="both"
-                      type="textarea"
-                      placeholder="请输入内容"
-                      v-model="form.task_cmd">
-                    </el-input>
+            <el-form-item label="SSH端口" :label-width="formLabelWidth">
+                <el-col :span="7">
+                    <el-input v-model="form.ssh_port" autocomplete="on"></el-input>
+                </el-col>
+            </el-form-item>
+            <el-form-item label="外网IP" :label-width="formLabelWidth">
+                <el-col :span="7">
+                    <el-input v-model="form.external_IP" autocomplete="on"></el-input>
+                </el-col>
+            </el-form-item>
+            <el-form-item label="内网IP_1" :label-width="formLabelWidth">
+                <el-col :span="7">
+                    <el-input v-model="form.inner_ip_1" autocomplete="on"></el-input>
+                </el-col>
+            </el-form-item>
+            <el-form-item label="内网IP_2" :label-width="formLabelWidth">
+                <el-col :span="7">
+                    <el-input v-model="form.inner_ip_2" autocomplete="on"></el-input>
+                </el-col>
+            </el-form-item>
+            <el-form-item label="root密码" :label-width="formLabelWidth">
+                <el-col :span="7">
+                    <el-input v-model="form.root_password" autocomplete="on"></el-input>
+                </el-col>
+            </el-form-item>
+            <el-form-item label="ubuntu密码" :label-width="formLabelWidth">
+                <el-col :span="7">
+                    <el-input v-model="form.ubuntu_password" autocomplete="on"></el-input>
+                </el-col>
+            </el-form-item>
+            <el-form-item label="数据库权限" :label-width="formLabelWidth">
+                <el-col :span="7">
+                    <el-input v-model="form.db_password" autocomplete="on"></el-input>
+                </el-col>
+            </el-form-item>
+            <el-form-item label="功能" :label-width="formLabelWidth">
+                <el-col :span="7">
+                    <el-input v-model="form.description" autocomplete="on"></el-input>
+                </el-col>
+            </el-form-item>
+            <el-form-item label="DELL管理IP" :label-width="formLabelWidth">
+                <el-col :span="7">
+                    <el-input v-model="form.manage_ip" autocomplete="on"></el-input>
+                </el-col>
+            </el-form-item>
+            <el-form-item label="服务器ID" :label-width="formLabelWidth">
+                <el-col :span="7">
+                    <el-input v-model="form.server_id" autocomplete="on"></el-input>
+                </el-col>
+            </el-form-item>
+            <el-form-item label="备注1" :label-width="formLabelWidth">
+                <el-col :span="7">
+                    <el-input v-model="form.comment_1" autocomplete="on"></el-input>
+                </el-col>
+            </el-form-item>
+            <el-form-item label="备注2" :label-width="formLabelWidth">
+                <el-col :span="7">
+                    <el-input v-model="form.comment_2" autocomplete="on"></el-input>
+                </el-col>
+            </el-form-item>
+            <el-form-item label="机房" :label-width="formLabelWidth">
+                <el-col :span="7">
+                    <el-input v-model="form.IDC" autocomplete="on"></el-input>
+                </el-col>
+            </el-form-item>
+            <el-form-item label="机柜" :label-width="formLabelWidth">
+                <el-col :span="7">
+                    <el-input v-model="form.position" autocomplete="on"></el-input>
+                </el-col>
+            </el-form-item>
+            <el-form-item label="使用人" :label-width="formLabelWidth">
+                <el-col :span="7">
+                    <el-input v-model="form.owner" autocomplete="on"></el-input>
                 </el-col>
             </el-form-item>
           </el-form>
@@ -168,29 +284,6 @@
             <el-button @click="dialogFormVisible = false">取 消</el-button>
             <el-button type="primary" @click="save">确 定</el-button>
           </div>
-        </el-dialog>
-
-        <el-dialog
-          title="日志"
-          lock-scroll="false"
-          :visible.sync="dialogVisible"
-          :before-close="logClose"
-          width="50%">
-            <el-form>
-                <el-form-item label="" :label-width="10">
-                    <el-col :span="24">
-                        <el-input
-                          ref="log_bar"
-                          resize="none"
-                          rows="24"
-                          type="textarea"
-                          placeholder=""
-                          readonly
-                          v-model="log">
-                        </el-input>
-                    </el-col>
-                </el-form-item>
-            </el-form>
         </el-dialog>
 
     </div>
@@ -240,19 +333,29 @@ wget https://unpkg.com/element-ui/lib/theme-chalk/fonts/element-icons.woff
                         currentPage: 1,
                         pageSize: 10,
                         dialogFormVisible: false,
-                        dialogVisible: false,
-                        webSocket: '',
-                        log: '',
                         form: {
-                          id: '',
-                          task_name: '',
-                          task_desc: '',
-                          task_type: '',
-                          target: '',
-                          task_cmd: ''
+                            id: '',
+                            class_1: '',
+                            class_2: '',
+                            class_3: '',
+                            login_ip: '',
+                            ssh_port: '',
+                            external_IP: '',
+                            inner_ip_1: '',
+                            inner_ip_2: '',
+                            root_password: '',
+                            ubuntu_password: '',
+                            db_password: '',
+                            description: '',
+                            manage_ip: '',
+                            server_id: '',
+                            comment_1: '',
+                            comment_2: '',
+                            IDC: '',
+                            position: '',
+                            owner: ''
                         },
-                        formLabelWidth: '25%',
-                        loading: false
+                        formLabelWidth: '25%'
                     }
                 },
                 ready: function () {
@@ -269,20 +372,12 @@ wget https://unpkg.com/element-ui/lib/theme-chalk/fonts/element-icons.woff
                             this.currentPage = 1
                         }
                         this.$store.commit('set',keywords)
-                        //自定义显示
-                        let tableDataSlice_custom = [];
-                        for( let i of tableDataSlice){
-                            let entry = {};
-                            Object.assign(entry, i);
-                            entry.duration = this.secondToDate(parseInt(i.duration));
-                            tableDataSlice_custom.push(entry)
-                        }
-                        return tableDataSlice_custom
+                        return tableDataSlice
                     },
                     search(keywords) {
                         //数据搜索
                         let newList = this.tableData.filter(item=>{
-                            if(item.task_name.includes(keywords)){
+                            if(item.login_ip.includes(keywords)){
                                 return true
                             }
                         });
@@ -337,7 +432,7 @@ wget https://unpkg.com/element-ui/lib/theme-chalk/fonts/element-icons.woff
                     changeTableSort(column){
                         //排序按钮
                         localStorage.setItem('column', JSON.stringify(column));
-                        if (column.order){
+                        if (! column.order){
                             this.tableData = JSON.parse(localStorage.getItem("tableData"))
                         }else {
 
@@ -348,55 +443,9 @@ wget https://unpkg.com/element-ui/lib/theme-chalk/fonts/element-icons.woff
                             }
                         }
                     },
-                    select_color(row){
-                        //渲染标签颜色
-                        if (row.status == '已完成') {
-                            return 'success'
-                        }else if (row.status == '运行中') {
-                            return 'warning'
-                        }else if (row.status == '未执行'){
-                            return 'info'
-                        }else{
-                            return 'danger'
-                        }
-                    },
-                    ws(name, pods_name, id) {
-                        // 创建Web Socket对象
-                        let _this = this;
-                        _this.log = '';
-                        _this.webSocket = new WebSocket("ws://192.168.120.251:8000/log_web_socket/");
-                        // 当WebSocket建立网络连接时激发该函数
-                        _this.webSocket.onopen = function () {
-                            // 发送消息
-                            _this.webSocket.send(JSON.stringify({name: name, pods_name: pods_name, id: id}));
-                        };
-                        // 为onmessage事件绑定监听器，接收消息
-                        _this.webSocket.onmessage = function (event) {
-                            // 接收消息
-                            //if (pods_name == '') {
-                            //    _this.log += JSON.parse(event.data) + '\n';
-                            //}else{
-                                _this.log = JSON.parse(event.data);
-                            //}
-                            // 发送keepalive
-                            setInterval(function() {
-                                _this.webSocket.send(JSON.stringify({keepalive: 1}));
-                            },10000);
-                        };
-                        _this.webSocket.onerror = function(e) {
-                            if(e){
-                                console.log(e.data)
-                            }
-                        };
-                        _this.webSocket.onclose = function(e) {
-                            if(e){
-                                console.log(e.code + '/' + e.reason + '/' + e.wasClean)
-                            }
-                        };
-                    },
                     post_data(url, data) {
                         //axios异步请求
-                        let _this = this;
+                        var _this = this;
                         axios({
                             method: 'POST',
                             headers: {
@@ -414,24 +463,16 @@ wget https://unpkg.com/element-ui/lib/theme-chalk/fonts/element-icons.woff
                                 _this.changeTableSort(JSON.parse(localStorage.getItem("column")))
                             }
                             if (response.data.code == 0) {
-                                _this.post_data('/task_table_data/',{})
+                                _this.post_data('/server_table_data/',{})
                                 _this.notify(response.data.code, response.data.msg)
-                                _this.loading = false
                             }
                             if (response.data.code == 1) {
                                 _this.notify(response.data.code, response.data.msg)
-                                _this.loading = false
                             }
                         })
                             .catch(function (error) {
                                 _this.notify(1, error)
                             })
-                    },
-                    secondToDate(result) {
-                        var h = Math.floor(result / 3600) < 10 ? '0'+Math.floor(result / 3600) : Math.floor(result / 3600);
-                        var m = Math.floor((result / 60 % 60)) < 10 ? '0' + Math.floor((result / 60 % 60)) : Math.floor((result / 60 % 60));
-                        var s = Math.floor((result % 60)) < 10 ? '0' + Math.floor((result % 60)) : Math.floor((result % 60));
-                        return result = h + ":" + m + ":" + s;
                     },
                     handleAdd(index, row) {
                         //编辑按钮
@@ -448,12 +489,26 @@ wget https://unpkg.com/element-ui/lib/theme-chalk/fonts/element-icons.woff
                     handleEdit(index, row) {
                         //编辑按钮
                         this.form = {
-                          id: row.id,
-                          task_name: row.task_name,
-                          task_desc: row.task_desc,
-                          task_type: row.task_type,
-                          target: row.target,
-                          task_cmd: row.task_cmd
+                            id: row.id,
+                            class_1: row.class_1,
+                            class_2: row.class_2,
+                            class_3: row.class_3,
+                            login_ip: row.login_ip,
+                            ssh_port: row.ssh_port,
+                            external_IP: row.external_IP,
+                            inner_ip_1: row.inner_ip_1,
+                            inner_ip_2: row.inner_ip_2,
+                            root_password: row.root_password,
+                            ubuntu_password: row.ubuntu_password,
+                            db_password: row.db_password,
+                            description: row.description,
+                            manage_ip: row.manage_ip,
+                            server_id: row.server_id,
+                            comment_1: row.comment_1,
+                            comment_2: row.comment_2,
+                            IDC: row.IDC,
+                            position: row.position,
+                            owner: row.owner
                         };
                         this.dialogFormVisible = true
                     },
@@ -466,61 +521,42 @@ wget https://unpkg.com/element-ui/lib/theme-chalk/fonts/element-icons.woff
                           })
                           .catch(_ => {});
                     },
-                    handleRun(index, row) {
-                        //删除按钮
-                        this.$confirm('确认运行？')
-                          .then(_ => {
-                            data = { task_name: row.task_name };
-                            this.post_data('/task_table_run/',data)
-                          })
-                          .catch(_ => {});
-                    },
-                    handleKill(index, row) {
-                        //删除按钮
-                        this.$confirm('确认终止？')
-                          .then(_ => {
-                            data = { id: row.id };
-                            this.post_data('/task_table_kill/',data)
-                          })
-                          .catch(_ => {});
-                    },
-                    handleLog(index, row) {
-                        //删除按钮
-                        this.log = '';
-                        this.ws(row.task_name, row.pods_name, row.id);
-                        this.dialogVisible = true
-                    },
-                    logClose(){
-                        this.webSocket.close();
-                        this.dialogVisible = false
-                    },
                     save() {
                         //添加按钮
                         let data = {
                             id: this.form.id,
-                            task_name: this.form.task_name,
-                            task_desc: this.form.task_desc,
-                            task_type: this.form.task_type,
-                            target: this.form.target,
-                            task_cmd: this.form.task_cmd
+                            class_1: this.form.class_1,
+                            class_2: this.form.class_2,
+                            class_3: this.form.class_3,
+                            login_ip: this.form.login_ip,
+                            ssh_port: this.form.ssh_port,
+                            external_IP: this.form.external_IP,
+                            inner_ip_1: this.form.inner_ip_1,
+                            inner_ip_2: this.form.inner_ip_2,
+                            root_password: this.form.root_password,
+                            ubuntu_password: this.form.ubuntu_password,
+                            db_password: this.form.db_password,
+                            description: this.form.description,
+                            manage_ip: this.form.manage_ip,
+                            server_id: this.form.server_id,
+                            comment_1: this.form.comment_1,
+                            comment_2: this.form.comment_2,
+                            IDC: this.form.IDC,
+                            position: this.form.position,
+                            owner: this.form.owner,
                         };
-                        this.post_data('/task_table_save/',data);
+                        this.post_data('/server_table_save/',data);
                         this.dialogFormVisible = false
-                        this.loading = true
                     }
                 },
                 created(){
                     //数据函数加载完成后
-                    this.post_data('/task_table_data/',{})
+                    this.post_data('/server_table_data/',{})
                 },
                 mounted(){
                     //网页完全显示后
-                    this.$refs.search_bar.focus();
+                    this.$refs.search_bar.focus()
                     this.changeTableSort({prop: 'create_time', order: 'descending'});
-                    let _this = this;
-                    setInterval(function() {
-                        _this.post_data('/task_table_data/',{})
-                    },5000);
                 },
                 store: store
             }

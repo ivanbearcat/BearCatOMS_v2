@@ -28,6 +28,7 @@
           placeholder="输入关键字搜索"></el-input></el-col>
 
       <el-table
+        v-loading="loading"
         :data="searchData(keywords)"
         @sort-change="changeTableSort"
         border
@@ -226,7 +227,8 @@ wget https://unpkg.com/element-ui/lib/theme-chalk/fonts/element-icons.woff
                         branch_now: '',
                         vars_files_now: '',
                         change_branch: '',
-                        formLabelWidth: '25%'
+                        formLabelWidth: '25%',
+                        loading: false
                     }
                 },
                 ready: function () {
@@ -393,9 +395,11 @@ wget https://unpkg.com/element-ui/lib/theme-chalk/fonts/element-icons.woff
                             if (response.data.code == 0) {
                                 _this.post_data('/ansiable_playbook_data/',{})
                                 _this.notify(response.data.code, response.data.msg)
+                                _this.loading = false
                             }
                             if (response.data.code == 1) {
                                 _this.notify(response.data.code, response.data.msg)
+                                _this.loading = false
                             }
                         })
                             //.catch(function (error) {
@@ -473,8 +477,9 @@ wget https://unpkg.com/element-ui/lib/theme-chalk/fonts/element-icons.woff
                                     config_file: this.config_file_now,
                                     config_data: this.config_data
                                 };
-                                this.post_data('/ansiable_playbook_config_edit/',data)
-                                this.dialogFormVisible = false
+                                this.post_data('/ansiable_playbook_config_edit/',data);
+                                this.dialogFormVisible = false;
+                                this.loading = true
                             })
                             .catch(_ => {});
                     },
@@ -488,6 +493,7 @@ wget https://unpkg.com/element-ui/lib/theme-chalk/fonts/element-icons.woff
                         };
                         this.post_data('/ansiable_playbook_change_branch/', data);
                         this.dialogFormVisible_branch = false
+                        this.loading = true
                     }
                 },
                 created(){
