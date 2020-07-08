@@ -1,6 +1,5 @@
 {% extends 'public/home.html' %}
 {% block body %}
-
 <div class="portlet box grey tasks-widget">
     <div class="portlet-title">
         <div class="caption">
@@ -187,7 +186,12 @@
 wget https://unpkg.com/element-ui/lib/theme-chalk/fonts/element-icons.woff
 -->
 <link rel="stylesheet" href="/static/index.css"/>
-
+<style>
+.el-upload-list__item {
+    width: 360px;
+    height: 30px;
+}
+</style>
 <script>
     var store = new Vuex.Store({
       state: {

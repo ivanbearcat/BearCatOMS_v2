@@ -13,6 +13,7 @@ import time
 import os
 from ansiable.models import logs
 from threading import Thread
+import re
 
 
 @login_required
@@ -178,6 +179,29 @@ def ansiable_playbook_log_data(request):
         })
     return HttpResponse(json.dumps({'code': -1, 'tableData': tableData}), content_type="application/json")
 
+
+
+@login_required
+def upload(request):
+    # 接收文件
+    file = request.FILES.get('image', None)
+    filename = re.sub(r'\(\d+\)', '', file.name)
+
+    with open(f'/tmp/{filename}', 'wb') as f:
+        for chunk in file.chunks():
+            f.write(chunk)
+    return HttpResponse(json.dumps({'code': 0, 'msg': str(1)}), content_type="application/json")
+
+
+
+@login_required
+def quick_update(request):
+    path = request.path.split('/')[1]
+    return render(request, 'ansiable/quick_update.html', {'user': request.user.username,
+                                                               'path1': 'ansiable',
+                                                               'path2': path,
+                                                               'page_name1': u'ansiable',
+                                                               'page_name2': '快速更新'})
 
 
 

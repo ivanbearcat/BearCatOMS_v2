@@ -97,6 +97,8 @@ def run_tasks(self, group_name):
                                      stdout=subprocess.PIPE)
                 p.wait()
                 stdout, stderr = p.communicate()
+                if stdout == b'':
+                    break
                 stdout_list = stdout.decode().strip().split()
                 if len(stdout_list) == 3 and stdout_list[0] == 'done':
                     break

@@ -85,5 +85,7 @@ urlpatterns = [
     url(r'^ansiable_playbook_change_branch/', ansiable_playbook_change_branch),
     url(r'^ansiable_playbook_log/', ansiable_playbook_log),
     url(r'^ansiable_playbook_log_data/', ansiable_playbook_log_data),
+    url(r'^upload/', upload),
+    url(r'^quick_update/', quick_update),
     url(r'^web_hook_api/', web_hook_api),
 ]
