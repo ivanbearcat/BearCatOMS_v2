@@ -185,12 +185,44 @@ def ansiable_playbook_log_data(request):
 def upload(request):
     # 接收文件
     file = request.FILES.get('image', None)
+    backup = request.POST.get('backup', None)
+    update = request.POST.get('update', None)
     filename = re.sub(r'\(\d+\)', '', file.name)
 
     with open(f'/tmp/{filename}', 'wb') as f:
         for chunk in file.chunks():
             f.write(chunk)
-    return HttpResponse(json.dumps({'code': 0, 'msg': str(1)}), content_type="application/json")
+
+    result = literal_eval(ssh_exec(ansiable_host, ansiable_port, 'python /tmp/list.py'))
+
+    log = ''
+    for i in result:
+        if i['project_name'] == filename.split('.')[0]:
+            # 判断文件名是否在已存在项目中
+            playbook_path = i['playbook_path']
+            # 复制文件到ansible机器
+            remote_jar_dir = '/work/jars/'
+            if backup != None and backup == 'true':
+                # 备份远程jar包
+                p0 = subprocess.Popen(f'ssh {ansiable_host} -p {ansiable_port} "\mv {remote_jar_dir}{filename}{{,_bak}}"',
+                                  shell=True, stdout=subprocess.PIPE)
+                p0.wait()
+            # 上传jar包
+            p1 = subprocess.Popen(f'scp -P {ansiable_port} /tmp/{filename} {ansiable_host}:{remote_jar_dir}',
+                                 shell=True, stdout=subprocess.PIPE)
+            p1.wait()
+            if update != None and update == 'true':
+                # 运行ansible-playbook
+                p2 = subprocess.Popen(f'ssh {ansiable_host} -p {ansiable_port} "/usr/bin/ansible-playbook {playbook_path}"',
+                                     shell=True, stdout=subprocess.PIPE)
+                p2.wait()
+                p_resutl = p2.stdout.read().decode()
+                if p_resutl:
+                    log = p_resutl
+            break
+    else:
+        return HttpResponse(json.dumps({'code': 1, 'msg': '没有查到改项目无法更新'}), content_type="application/json")
+    return HttpResponse(json.dumps({'code': 0, 'msg': '成功', 'log': log}), content_type="application/json")
 
 
 
