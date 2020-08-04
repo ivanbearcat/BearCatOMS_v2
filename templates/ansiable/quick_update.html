@@ -123,7 +123,7 @@ wget https://unpkg.com/element-ui/lib/theme-chalk/fonts/element-icons.woff
             },
             on_success(response, file){
                 this.notify(response.code, response.msg);
-                if (response.log !== '') {
+                if (response.code == 0 ) {
                     this.log = response.log;
                     this.dialogVisible = true
                 }
