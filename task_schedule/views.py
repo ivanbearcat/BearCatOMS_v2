@@ -47,10 +47,14 @@ def log_web_socket(request):
         tmp_list = message['pods_name'].split('-')
         tmp_list[-2] = '.*'
         pods_name = '-'.join(tmp_list)
-        pods_Running = subprocess.Popen(f'ssh {host} -p {port} "kubectl get pods |grep {pods_name}|grep Running"|' +
+
+        pods_Running = subprocess.Popen(f'ssh {host} -p {port} "kubectl get pods -nspark-cluster |grep {pods_name}|grep Running"|' +
                                         "awk '{print $1}'", shell=True, stdout=subprocess.PIPE)
+        print(f'ssh {host} -p {port} "kubectl get pods -nspark-cluster|grep {pods_name}|grep Running"|' +
+                                        "awk '{print $1}'")
         pods_Running.wait()
         pods_name_Running = pods_Running.stdout.read().decode().strip()
+        print(pods_name_Running)
 
     while 1:
         try:
@@ -58,7 +62,7 @@ def log_web_socket(request):
         except EOFError:
             break
         if pods_name_Running != '':
-            p = subprocess.Popen(f"ssh {host} -p {port} 'kubectl logs {pods_name_Running}'", shell=True, stdout=subprocess.PIPE)
+            p = subprocess.Popen(f"ssh {host} -p {port} 'kubectl logs {pods_name_Running} -nspark-cluster'", shell=True, stdout=subprocess.PIPE)
             # p = subprocess.Popen(f'''ssh {host} -p {port} "cat {orm.k8s_log}"''', shell=True,
             #                      stdout=subprocess.PIPE)
         else:
@@ -362,14 +366,14 @@ def task_table_kill(request):
             orm.save()
             task_name = re.search(r'--name (.*?) ', orm.task_cmd).group(1).lower()
             def thread_run():
-                p = subprocess.Popen(f"ssh {host} -p {port} kubectl get pods |grep {task_name}" + "|egrep '(driver)?'|egrep '(Running|Pending)'|awk '{print $1}'",
+                p = subprocess.Popen(f"ssh {host} -p {port} kubectl get pods -nspark-cluster |grep {task_name}" + "|egrep '(driver)?'|egrep '(Running|Pending)'|awk '{print $1}'",
                                      shell=True, stdout=subprocess.PIPE)
                 while p.poll() != None:
                     time.sleep(0.1)
                 stdout, stderr = p.communicate()
                 if stdout:
                     for i in stdout.decode().strip().split('\n'):
-                        subprocess.call(f'ssh {host} -p {port} "kubectl delete pods {i}"', shell=True)
+                        subprocess.call(f'ssh {host} -p {port} "kubectl delete pods {i} -nspark-cluster"', shell=True)
             threading.Thread(target=thread_run).start()
 
         return HttpResponse(json.dumps({'code':0,'msg':'操作成功'}),content_type="application/json")
@@ -499,14 +503,14 @@ def task_table_group_kill(request):
             orm.save()
             task_name = re.search(r'--name (.*?) ', orm.task_cmd).group(1).lower()
             def thread_run():
-                p = subprocess.Popen(f"ssh {host} -p {port} kubectl get pods |grep {task_name}" + "|grep driver|grep Running|awk '{print $1}'",
+                p = subprocess.Popen(f"ssh {host} -p {port} kubectl get pods -nspark-cluster|grep {task_name}" + "|grep driver|grep Running|awk '{print $1}'",
                                      shell=True, stdout=subprocess.PIPE)
                 while p.poll() != None:
                     time.sleep(0.1)
                 stdout, stderr = p.communicate()
                 if stdout:
                     for i in stdout.decode().strip().split('\n'):
-                        subprocess.call(f'ssh {host} -p {port} "kubectl delete pods {i}"', shell=True)
+                        subprocess.call(f'ssh {host} -p {port} "kubectl delete pods {i} -nspark-cluster"', shell=True)
             threading.Thread(target=thread_run).start()
 
         return HttpResponse(json.dumps({'code':0,'msg':'操作成功'}),content_type="application/json")
