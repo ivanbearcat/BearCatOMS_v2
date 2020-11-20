@@ -12,7 +12,7 @@ import os
 import signal
 from dwebsocket import require_websocket
 import re
-from task_schedule.apps import type_dict
+from task_schedule.apps import type_dict,k8s_host, k8s_port
 from commons.socket_send_data import tunnel_send
 from threading import Thread
 from task_schedule import tasks
@@ -21,6 +21,8 @@ from celery.task.control import revoke
 from django_celery_beat.models import PeriodicTask, CrontabSchedule
 from django.db.models import Q
 from BearCatOMSv2.settings import TIME_ZONE
+from commons.ssh_commons import ssh_exec
+from ast import literal_eval
 
 
 
@@ -650,5 +652,37 @@ def task_schedule_del(request):
         orm_crontab.delete()
         orm.delete()
         return HttpResponse(json.dumps({'code': 0, 'msg': '操作成功'}), content_type="application/json")
+    except Exception as e:
+        return HttpResponse(json.dumps({'code': 1, 'msg': e}), content_type="application/json")
+
+
+
+@login_required
+def task_schedule_scripts(request):
+    path = request.path.split('/')[1]
+    return render(request, 'task_schedule/task_schedule_scripts.html', {'user':request.user.username,
+                                                     'path1':'task_schedule',
+                                                     'path2':path,
+                                                     'page_name1':u'任务调度',
+                                                     'page_name2':'脚本'})
+
+
+
+@login_required
+def task_schedule_scripts_data(request):
+    result = literal_eval(ssh_exec(k8s_host, k8s_port ,'python /work/spark_scripts/tasks/script_list.py'))
+    return HttpResponse(json.dumps({'code': -1, 'tableData': result}), content_type='application/json;charset = utf-8')
+
+
+
+@login_required
+def task_schedule_scripts_add(request):
+    try:
+        data = json.loads(request.body)
+        script_name = data.get('script_name')
+        script_content = data.get('script_content')
+        # print(f'cat > /work/spark_scripts/tasks/{script_name} << eof \n{script_content}\neof')
+        ssh_exec(k8s_host, k8s_port, f'cat > /work/spark_scripts/tasks/{script_name} << eof \n{script_content}\neof')
+        return HttpResponse(json.dumps({'code':0,'msg':'操作成功'}),content_type="application/json")
     except Exception as e:
         return HttpResponse(json.dumps({'code': 1, 'msg': e}), content_type="application/json")
