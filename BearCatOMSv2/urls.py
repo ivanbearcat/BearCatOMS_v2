@@ -81,6 +81,8 @@ urlpatterns = [
     url(r'^task_schedule_scripts/', task_schedule_scripts),
     url(r'^task_schedule_scripts_data/', task_schedule_scripts_data),
     url(r'^task_schedule_scripts_add/', task_schedule_scripts_add),
+    url(r'^task_schedule_scripts_edit/', task_schedule_scripts_edit),
+    url(r'^task_schedule_scripts_run/', task_schedule_scripts_run),
     url(r'^ansiable_playbook/', ansiable_playbook),
     url(r'^ansiable_playbook_data/', ansiable_playbook_data),
     url(r'^ansiable_playbook_run/', ansiable_playbook_run),

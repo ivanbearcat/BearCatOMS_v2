@@ -682,7 +682,34 @@ def task_schedule_scripts_add(request):
         script_name = data.get('script_name')
         script_content = data.get('script_content')
         # print(f'cat > /work/spark_scripts/tasks/{script_name} << eof \n{script_content}\neof')
-        ssh_exec(k8s_host, k8s_port, f'cat > /work/spark_scripts/tasks/{script_name} << eof \n{script_content}\neof')
+        with open('/tmp/tempfile', 'w') as f:
+            f.write(script_content)
+        code = subprocess.call(f'scp -P {k8s_port} /tmp/tempfile {k8s_host}:/work/spark_scripts/tasks/{script_name}', shell=True)
+        if code != 0 :
+            return HttpResponse(json.dumps({'code': 1, 'msg': '传输文件错误'}), content_type="application/json")
         return HttpResponse(json.dumps({'code':0,'msg':'操作成功'}),content_type="application/json")
     except Exception as e:
         return HttpResponse(json.dumps({'code': 1, 'msg': e}), content_type="application/json")
+
+
+
+@login_required
+def task_schedule_scripts_edit(request):
+    try:
+        data = json.loads(request.body)
+        script_name = data.get('script_name')
+        code = subprocess.call(f'scp -P {k8s_port} {k8s_host}:/work/spark_scripts/tasks/{script_name} /tmp/tempfile', shell=True)
+        if code != 0 :
+            return HttpResponse(json.dumps({'code': 1, 'msg': '传输文件错误'}), content_type="application/json")
+        with open('/tmp/tempfile') as f:
+            content = f.read()
+        return HttpResponse(json.dumps({'code':10, 'script_name': script_name, 'script_content': content}),content_type="application/json")
+    except Exception as e:
+        return HttpResponse(json.dumps({'code': 1, 'msg': e}), content_type="application/json")
+
+
+
+@login_required
+def task_schedule_scripts_run(request):
+    data = json.loads(request.body)
+    script_name = data.get('script_name')

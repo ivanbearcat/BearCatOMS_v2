@@ -31,6 +31,7 @@
       <el-table
         :data="searchData(keywords)"
         @sort-change="changeTableSort"
+        v-loading="loading"
         border
         stripe
         height="590px"
@@ -51,6 +52,7 @@
           prop="class_name">
         </el-table-column>
         <el-table-column
+          min-width="30"
           label="操作">
           <template slot-scope="scope">
             <el-button
@@ -76,24 +78,24 @@
         </el-pagination>
 
     <!-- 对话框 -->
-        <el-dialog title="添加脚本"
+        <el-dialog title="脚本"
                    :visible.sync="dialogFormVisible"
                    :append-to-body="true"
                    :before-close="handleClose">
           <el-form :model="form">
             <el-form-item label="脚本名称" :label-width="formLabelWidth">
-                <el-col :span="7">
+                <el-col :span="10">
                     <el-input v-model="form.script_name" autocomplete="on"></el-input>
                 </el-col>
             </el-form-item>
             </el-form-item>
             <el-form-item label="脚本内容" :label-width="formLabelWidth">
-                <el-col :span="18">
+                <el-col :span="22">
                     <el-input
                       :autosize="{ minRows: 20 }"
                       type="textarea"
                       placeholder="请输入内容"
-                      v-model="form.script_content ">
+                      v-model="form.script_content">
                     </el-input>
                 </el-col>
             </el-form-item>
@@ -151,8 +153,12 @@ wget https://unpkg.com/element-ui/lib/theme-chalk/fonts/element-icons.woff
                         currentPage: 1,
                         pageSize: 10,
                         dialogFormVisible: false,
-                        form: {},
-                        formLabelWidth: '25%'
+                        form: {
+                            script_name: '',
+                            script_content: ''
+                        },
+                        formLabelWidth: '25%',
+                        loading: false,
                     }
                 },
                 ready: function () {
@@ -262,11 +268,18 @@ wget https://unpkg.com/element-ui/lib/theme-chalk/fonts/element-icons.woff
                                 _this.changeTableSort(JSON.parse(localStorage.getItem("column")))
                             }
                             if (response.data.code == 0) {
-                                _this.post_data('/task_schedule_scripts_data/',{})
+                                _this.post_data('/task_schedule_scripts_data/',{});
                                 _this.notify(response.data.code, response.data.msg)
                             }
                             if (response.data.code == 1) {
                                 _this.notify(response.data.code, response.data.msg)
+                            }
+                            if (response.data.code == 10) {
+                                _this.post_data('/task_schedule_scripts_data/',{});
+                                {#_this.form.script_name = response.data.script_name;#}
+                                _this.form.script_content = response.data.script_content;
+                                _this.dialogFormVisible = true;
+                                _this.loading = false
                             }
                         })
                             .catch(function (error) {
@@ -275,24 +288,20 @@ wget https://unpkg.com/element-ui/lib/theme-chalk/fonts/element-icons.woff
                     },
                     handleAdd(index, row) {
                         //编辑按钮
-                        this.form = {
-                          id: '',
-                          script_name: '',
-                          script_content: ''
-                        };
+                        this.form.script_name = '';
+                        this.form.script_content = '';
                         this.dialogFormVisible = true
                     },
                     handleEdit(index, row) {
                         //编辑按钮
-                        this.form = {
-                          id: row.id,
-                          task_name: row.task_name,
-                          task_desc: row.task_desc,
-                          task_type: row.task_type,
-                          target: row.target,
-                          task_cmd: row.task_cmd
+                        this.form.script_name = row.script_name;
+
+                        let data = {
+                            script_name: this.form.script_name,
                         };
-                        this.dialogFormVisible = true
+                        this.loading = true
+                        this.post_data('/task_schedule_scripts_edit/',data);
+
                     },
                     handleRun(index, row) {
                         //运行按钮
