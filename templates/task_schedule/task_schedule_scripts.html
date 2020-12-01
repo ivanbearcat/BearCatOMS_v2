@@ -106,6 +106,29 @@
           </div>
         </el-dialog>
 
+        <el-dialog
+          title="日志"
+          lock-scroll="false"
+          :visible.sync="dialogVisible"
+          :before-close="logClose"
+          :append-to-body="true"
+          width="50%">
+            <el-form>
+                <el-form-item label="" :label-width="10">
+                    <el-col :span="24">
+                        <el-input
+                          resize="none"
+                          rows="24"
+                          type="textarea"
+                          placeholder=""
+                          readonly
+                          v-model="log">
+                        </el-input>
+                    </el-col>
+                </el-form-item>
+            </el-form>
+        </el-dialog>
+
     </div>
 </template>
 
@@ -153,12 +176,15 @@ wget https://unpkg.com/element-ui/lib/theme-chalk/fonts/element-icons.woff
                         currentPage: 1,
                         pageSize: 10,
                         dialogFormVisible: false,
+                        dialogVisible: false,
+                        log: '',
                         form: {
                             script_name: '',
                             script_content: ''
                         },
                         formLabelWidth: '25%',
                         loading: false,
+                        webSocket: ''
                     }
                 },
                 ready: function () {
@@ -286,6 +312,37 @@ wget https://unpkg.com/element-ui/lib/theme-chalk/fonts/element-icons.woff
                                 _this.notify(1, error)
                             })
                     },
+                    ws(data) {
+                        // 创建Web Socket对象
+                        let _this = this;
+                        _this.log = '';
+                        _this.webSocket = new WebSocket("ws://192.168.120.251:8000/task_schedule_scripts_run/");
+                        // 当WebSocket建立网络连接时激发该函数
+                        _this.webSocket.onopen = function () {
+                            // 发送消息
+                            _this.webSocket.send(JSON.stringify(data));
+                            // 发送keepalive
+                            setInterval(function() {
+                                _this.webSocket.send(JSON.stringify({keepalive: 1}));
+                            },10000);
+                        };
+                        // 为onmessage事件绑定监听器，接收消息
+                        _this.webSocket.onmessage = function (event) {
+                            // 接收消息
+                            //if (pods_name == '') {
+                            //    _this.log += JSON.parse(event.data) + '\n';
+                            //}else{
+                                _this.log += JSON.parse(event.data);
+                            //}
+                        };
+                        _this.webSocket.onerror = function(e) {
+                            if(e){
+                                console.log(e.data)
+                            }
+                        };
+                        _this.webSocket.onclose = function(e) {
+                        };
+                    },
                     handleAdd(index, row) {
                         //编辑按钮
                         this.form.script_name = '';
@@ -306,11 +363,13 @@ wget https://unpkg.com/element-ui/lib/theme-chalk/fonts/element-icons.woff
                     handleRun(index, row) {
                         //运行按钮
                         this.$confirm('确认运行？')
-                          .then(_ => {
-                            data = { script_name: row.script_name };
-                            this.post_data('/task_schedule_scripts_run/',data)
-                          })
-                          .catch(_ => {});
+                            .then(_ => {
+                                this.ws({
+                                    script_name: row.script_name,
+                                });
+                                this.dialogVisible = true
+                            })
+                            .catch(_ => {});
                     },
                     save() {
                         //添加按钮
@@ -320,7 +379,17 @@ wget https://unpkg.com/element-ui/lib/theme-chalk/fonts/element-icons.woff
                         };
                         this.post_data('/task_schedule_scripts_add/',data)
                         this.dialogFormVisible = false
-                    }
+                    },
+                    logClose(done){
+                        this.$confirm('确认关闭？')
+                          .then(_ => {
+                              this.webSocket.send(JSON.stringify({status: 'stop'}));
+                              this.webSocket.close()
+                              done();
+                          })
+                          .catch(_ => {});
+
+                    },
                 },
                 created(){
                     //数据函数加载完成后

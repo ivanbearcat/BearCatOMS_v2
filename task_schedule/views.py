@@ -14,7 +14,6 @@ from dwebsocket import require_websocket
 import re
 from task_schedule.apps import type_dict,k8s_host, k8s_port
 from commons.socket_send_data import tunnel_send
-from threading import Thread
 from task_schedule import tasks
 from ast import literal_eval
 from celery.task.control import revoke
@@ -23,6 +22,9 @@ from django.db.models import Q
 from BearCatOMSv2.settings import TIME_ZONE
 from commons.ssh_commons import ssh_exec
 from ast import literal_eval
+from threading import Thread
+import sys
+
 
 
 
@@ -681,9 +683,10 @@ def task_schedule_scripts_add(request):
         data = json.loads(request.body)
         script_name = data.get('script_name')
         script_content = data.get('script_content')
-        # print(f'cat > /work/spark_scripts/tasks/{script_name} << eof \n{script_content}\neof')
+        # 本地写缓存文件
         with open('/tmp/tempfile', 'w') as f:
             f.write(script_content)
+        # 缓存文件拷贝到远程
         code = subprocess.call(f'scp -P {k8s_port} /tmp/tempfile {k8s_host}:/work/spark_scripts/tasks/{script_name}', shell=True)
         if code != 0 :
             return HttpResponse(json.dumps({'code': 1, 'msg': '传输文件错误'}), content_type="application/json")
@@ -698,9 +701,11 @@ def task_schedule_scripts_edit(request):
     try:
         data = json.loads(request.body)
         script_name = data.get('script_name')
+        # 拷贝远程脚本到本地缓存文件
         code = subprocess.call(f'scp -P {k8s_port} {k8s_host}:/work/spark_scripts/tasks/{script_name} /tmp/tempfile', shell=True)
         if code != 0 :
             return HttpResponse(json.dumps({'code': 1, 'msg': '传输文件错误'}), content_type="application/json")
+        # 读缓存文件内容返回前端
         with open('/tmp/tempfile') as f:
             content = f.read()
         return HttpResponse(json.dumps({'code':10, 'script_name': script_name, 'script_content': content}),content_type="application/json")
@@ -710,6 +715,33 @@ def task_schedule_scripts_edit(request):
 
 
 @login_required
+@require_websocket
 def task_schedule_scripts_run(request):
-    data = json.loads(request.body)
-    script_name = data.get('script_name')
+    message = request.websocket.wait()
+    message = json.loads(message)
+    script_name = message.get('script_name')
+    status = message.get('status')
+    # 运行远程脚本
+    p = subprocess.Popen(f'ssh {k8s_host} -p {k8s_port} "/bin/bash /work/spark_scripts/tasks/{script_name}"', shell=True, stdout=subprocess.PIPE)
+    # 启动线程监听websocket信号，获取到stop则停止远程脚本，超5分钟自杀
+    def recive_data(request, p):
+        i = 0
+        while 1:
+            if i > 300: sys.exit(1)
+            data = request.websocket.wait()
+            data = json.loads(data)
+            if data.get('status') == 'stop':
+                p.kill()
+                sys.exit(0)
+            time.sleep(1)
+    t = Thread(target=recive_data, args=(request, p))
+    t.start()
+    # 持续获取远程脚本输出，通过websocket发送到前端
+    while p.poll() == None:
+        line = p.stdout.readline().decode()
+        if line:
+            request.websocket.send(json.dumps(line))
+
+
+    # print(t.is_alive())
+
