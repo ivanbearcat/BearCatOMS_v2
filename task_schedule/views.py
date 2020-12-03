@@ -672,7 +672,7 @@ def task_schedule_scripts(request):
 
 @login_required
 def task_schedule_scripts_data(request):
-    result = literal_eval(ssh_exec(k8s_host, k8s_port ,'python /work/spark_scripts/tasks/script_list.py'))
+    result = literal_eval(ssh_exec(k8s_host, k8s_port ,'python /work/spark_scripts/tasks/script_list.py script'))
     return HttpResponse(json.dumps({'code': -1, 'tableData': result}), content_type='application/json;charset = utf-8')
 
 
@@ -743,5 +743,60 @@ def task_schedule_scripts_run(request):
             request.websocket.send(json.dumps(line))
 
 
-    # print(t.is_alive())
 
+@login_required
+def task_schedule_config(request):
+    path = request.path.split('/')[1]
+    return render(request, 'task_schedule/task_schedule_config.html', {'user': request.user.username,
+                                                                        'path1': 'task_schedule',
+                                                                        'path2': path,
+                                                                        'page_name1': u'任务调度',
+                                                                        'page_name2': '配置文件'})
+
+
+
+@login_required
+def task_schedule_config_data(request):
+    result = literal_eval(ssh_exec(k8s_host, k8s_port, 'python /work/spark_scripts/tasks/script_list.py config'))
+    return HttpResponse(json.dumps({'code': -1, 'tableData': result}), content_type='application/json;charset = utf-8')
+
+
+
+@login_required
+def task_schedule_config_add(request):
+    try:
+        data = json.loads(request.body)
+        config_name = data.get('config_name')
+        config_content = data.get('config_content')
+        # 判断文件名后缀
+        if config_name.endswith('properties'):
+            # 本地写缓存文件
+            with open('/tmp/tempfile', 'w') as f:
+                f.write(config_content)
+            # 缓存文件拷贝到远程
+            code = subprocess.call(f'scp -P {k8s_port} /tmp/tempfile {k8s_host}:/work/www/spark/conf/{config_name}', shell=True)
+            if code != 0 :
+                return HttpResponse(json.dumps({'code': 1, 'msg': '传输文件错误'}), content_type="application/json")
+            return HttpResponse(json.dumps({'code':0,'msg':'操作成功'}),content_type="application/json")
+        else:
+            return HttpResponse(json.dumps({'code': 1, 'msg': '文件后缀错误'}), content_type="application/json")
+    except Exception as e:
+        return HttpResponse(json.dumps({'code': 1, 'msg': e}), content_type="application/json")
+
+
+
+@login_required
+def task_schedule_config_edit(request):
+    try:
+        data = json.loads(request.body)
+        config_name = data.get('config_name')
+        # 拷贝远程脚本到本地缓存文件
+        code = subprocess.call(f'scp -P {k8s_port} {k8s_host}:/work/www/spark/conf/{config_name} /tmp/tempfile', shell=True)
+        if code != 0 :
+            return HttpResponse(json.dumps({'code': 1, 'msg': '传输文件错误'}), content_type="application/json")
+        # 读缓存文件内容返回前端
+        with open('/tmp/tempfile') as f:
+            content = f.read()
+        return HttpResponse(json.dumps({'code':10, 'config_name': config_name, 'config_content': content}),content_type="application/json")
+    except Exception as e:
+        return HttpResponse(json.dumps({'code': 1, 'msg': e}), content_type="application/json")
