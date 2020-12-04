@@ -683,6 +683,9 @@ def task_schedule_scripts_add(request):
         data = json.loads(request.body)
         script_name = data.get('script_name')
         script_content = data.get('script_content')
+        # 过滤危险的rm命令
+        if 'rm ' in script_content:
+            return HttpResponse(json.dumps({'code': 1, 'msg': '有危险命令'}), content_type="application/json")
         # 本地写缓存文件
         with open('/tmp/tempfile', 'w') as f:
             f.write(script_content)
@@ -800,3 +803,53 @@ def task_schedule_config_edit(request):
         return HttpResponse(json.dumps({'code':10, 'config_name': config_name, 'config_content': content}),content_type="application/json")
     except Exception as e:
         return HttpResponse(json.dumps({'code': 1, 'msg': e}), content_type="application/json")
+
+
+
+@login_required
+def task_schedule_upload(request):
+    path = request.path.split('/')[1]
+    return render(request, 'task_schedule/task_schedule_update.html', {'user': request.user.username,
+                                                               'path1': 'task_schedule',
+                                                               'path2': path,
+                                                               'page_name1': u'task_schedule',
+                                                               'page_name2': '上传jar包'})
+
+
+
+@login_required
+def task_schedule_upload_data(request):
+    # 接收文件
+    file = request.FILES.get('image', None)
+    backup = request.POST.get('backup', None)
+    filename = re.sub(r'\(\d+\)', '', file.name)
+
+    with open(f'/tmp/{filename}', 'wb') as f:
+        for chunk in file.chunks():
+            f.write(chunk)
+    # 复制文件到k8s机器
+    remote_jar_dir = '/work/www/spark/jar/'
+    if backup != None and backup == 'true':
+        # 备份远程jar包
+        print(f'ssh {k8s_host} -p {k8s_port} "\mv {remote_jar_dir}{filename}{{,_bak}}"')
+        p0 = subprocess.Popen(f'ssh {k8s_host} -p {k8s_port} "\mv {remote_jar_dir}{filename}{{,_bak}}"',
+                          shell=True, stdout=subprocess.PIPE)
+        p0.wait()
+    # 上传jar包
+    print(f'scp -P {k8s_port} /tmp/{filename} {k8s_host}:{remote_jar_dir}')
+    p1 = subprocess.Popen(f'scp -P {k8s_port} /tmp/{filename} {k8s_host}:{remote_jar_dir}',
+                         shell=True, stdout=subprocess.PIPE)
+    p1.wait()
+
+    return HttpResponse(json.dumps({'code': 0, 'msg': '上传成功'}), content_type="application/json")
+
+
+
+@login_required
+def task_schedule_tasks(request):
+    path = request.path.split('/')[1]
+    return render(request, 'task_schedule/task_schedule_tasks.html', {'user': request.user.username,
+                                                               'path1': 'task_schedule',
+                                                               'path2': path,
+                                                               'page_name1': u'task_schedule',
+                                                               'page_name2': '运行中任务'})
