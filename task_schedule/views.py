@@ -853,3 +853,55 @@ def task_schedule_tasks(request):
                                                                'path2': path,
                                                                'page_name1': u'task_schedule',
                                                                'page_name2': '运行中任务'})
+
+
+
+@login_required
+def task_schedule_tasks_data(request):
+    result = literal_eval(ssh_exec(k8s_host, k8s_port ,'python /work/spark_scripts/tasks/script_list.py tasks'))
+    return HttpResponse(json.dumps({'code': -1, 'tableData': result}), content_type='application/json;charset = utf-8')
+
+
+
+@login_required
+def task_schedule_task_stop(request):
+    # 停止k8s指定pod
+    data = json.loads(request.body)
+    task_name = data.get('task_name')
+    # 带上k8s环境变量删除pod
+    code = subprocess.call(f'ssh {k8s_host} -p {k8s_port} "export KUBECONFIG=/etc/kubernetes/admin.conf; /usr/bin/kubectl delete pod {task_name}"', shell=True)
+    if code != 0:
+        return HttpResponse(json.dumps({'code': 1, 'msg': '停止失败'}), content_type="application/json")
+    return HttpResponse(json.dumps({'code': 0, 'msg': '停止成功'}), content_type="application/json")
+
+
+
+@login_required
+@require_websocket
+def task_schedule_task_log(request):
+    message = request.websocket.wait()
+    message = json.loads(message)
+    task_name = message.get('task_name')
+    # 远程获取pod日志
+    p = subprocess.Popen(f'ssh {k8s_host} -p {k8s_port} "export KUBECONFIG=/etc/kubernetes/admin.conf; /usr/bin/kubectl logs -f {task_name}"',
+                         shell=True, stdout=subprocess.PIPE)
+    # 启动线程监听websocket信号，获取到stop则停止远程脚本，超5分钟自杀
+    def recive_data(request, p):
+        i = 0
+        while 1:
+            if i > 300:
+                sys.exit(1)
+            data = request.websocket.wait()
+            data = json.loads(data)
+            if data.get('status') == 'stop':
+                p.kill()
+                sys.exit(0)
+            time.sleep(1)
+
+    t = Thread(target=recive_data, args=(request, p))
+    t.start()
+    # 持续获取日志输出，通过websocket发送到前端
+    while p.poll() == None:
+        line = p.stdout.readline().decode()
+        if line:
+            request.websocket.send(json.dumps(line))

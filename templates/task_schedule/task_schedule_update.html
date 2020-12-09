@@ -1,0 +1,104 @@
+{% extends 'public/home.html' %}
+{% block body %}
+<div class="portlet box grey tasks-widget">
+    <div class="portlet-title">
+        <div class="caption">
+            <i class="fa fa-globe"></i>{{ page_name2 }}
+        </div>
+    </div>
+    <div class="portlet-body">
+<!-- vue -->
+    {% verbatim a %}
+        <div id="app" class="el-row">
+            <div class="el-col el-col-6">
+                <el-upload
+                  class="upload-demo"
+                  drag
+                  name="image"
+                  :data="args"
+                  action="/task_schedule_upload_data/"
+                  :on-success="on_success"
+                  accept=".jar"
+                  multiple>
+                  <i class="el-icon-upload"></i>
+                  <div class="el-upload__text">将文件拖到此处，或<em>点击上传</em></div>
+                  <div class="el-upload__tip" slot="tip"></div>
+                </el-upload>
+            </div>
+            <br>
+            <br>
+            <br>
+            <br>
+            <div class="el-col el-col-4">
+                <el-switch
+                  v-model="args.backup"
+                  active-text="备份"
+                  inactive-text="不备份">
+                </el-switch>
+            </div>
+        </div>
+    </div>
+</div>
+
+
+{% endverbatim a %}
+<script src="/static/vue.min.js"></script>
+<script src="/static/vuex.js"></script>
+<!--
+<script src="https://unpkg.com/element-ui/lib/index.js"></script>
+-->
+<script src="/static/index.js"></script>
+<script src="/static/axios.min.js"></script>
+    <!--
+<link rel="stylesheet" href="https://unpkg.com/element-ui/lib/theme-chalk/index.css"/>
+wget https://unpkg.com/element-ui/lib/theme-chalk/fonts/element-icons.woff
+-->
+<link rel="stylesheet" href="/static/index.css"/>
+
+<style>
+.el-upload-list__item {
+    width: 360px;
+    height: 30px;
+}
+</style>
+
+<script>
+    var vm = new Vue({
+        // 绑定对象
+        el:'#app',
+        data:{
+            log: '',
+            dialogVisible: false,
+            args: {'backup': true}
+        },
+        methods:{
+            notify(code, msg){
+                //消息提示
+                if (code == 0){
+                    var title = '成功'
+                    var type = 'success'
+                }else if (code == 1){
+                    var title = '错误'
+                    var type = 'error'
+                }
+                this.$notify({
+                  title: title,
+                  message: msg,
+                  type: type,
+                  offset: 37,
+                  showClose: false
+                });
+            },
+            on_success(response, file){
+                this.notify(response.code, response.msg);
+            },
+            logClose(){
+            }
+        }
+    })
+
+</script>
+
+
+
+{% endblock %}

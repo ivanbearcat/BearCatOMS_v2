@@ -1,0 +1,365 @@
+{% extends 'public/home.html' %}
+{% block body %}
+
+<div class="portlet box grey tasks-widget">
+    <div class="portlet-title">
+        <div class="caption">
+            <i class="fa fa-globe"></i>{{ page_name2 }}
+        </div>
+    </div>
+    <div class="portlet-body">
+<!-- vue -->
+    {% verbatim a %}
+        <div id="app">
+            <datatable></datatable>
+        </div>
+    </div>
+</div>
+
+
+<template id="tmp1">
+    <div>
+    <!-- 数据表 -->
+      <el-col :span="6"><el-button type="Success" size="mini" @click="handleAdd">添加</el-button></el-col>
+      <el-col :span="4" :offset="14"><el-input
+          clearable
+          v-model="keywords"
+          size="mini"
+          ref="search_bar"
+          placeholder="输入关键字搜索"></el-input></el-col>
+
+      <el-table
+        :data="searchData(keywords)"
+        @sort-change="changeTableSort"
+        v-loading="loading"
+        border
+        stripe
+        height="590px"
+        style="width: 100%">
+        <el-table-column
+          sortable
+          label="配置文件名"
+          prop="config_name">
+        </el-table-column>
+        <el-table-column
+          min-width="30"
+          label="操作">
+          <template slot-scope="scope">
+            <el-button
+              size="mini"
+              type="primary"
+              @click="handleEdit(scope.$index, scope.row)">编辑</el-button>
+          </template>
+        </el-table-column>
+      </el-table>
+        <el-pagination
+          background
+          @size-change="handleSizeChange"
+          @current-change="handleCurrentChange"
+          :current-page="currentPage"
+          :page-sizes="[10, 25, 50, 100]"
+          :page-size="pageSize"
+          layout="sizes, total, prev, pager, next, jumper"
+          :total="search(keywords).length">
+        </el-pagination>
+
+    <!-- 对话框 -->
+        <el-dialog title="配置文件"
+                   :visible.sync="dialogFormVisible"
+                   :append-to-body="true"
+                   :before-close="handleClose">
+          <el-form :model="form">
+            <el-form-item label="脚本名称" :label-width="formLabelWidth">
+                <el-col :span="10">
+                    <el-input v-model="form.config_name" autocomplete="on"></el-input>
+                </el-col>
+            </el-form-item>
+            </el-form-item>
+            <el-form-item label="脚本内容" :label-width="formLabelWidth">
+                <el-col :span="22">
+                    <el-input
+                      :autosize="{ minRows: 20 }"
+                      type="textarea"
+                      placeholder="请输入内容"
+                      v-model="form.config_content">
+                    </el-input>
+                </el-col>
+            </el-form-item>
+          </el-form>
+          <div slot="footer" class="dialog-footer">
+            <el-button @click="dialogFormVisible = false">取 消</el-button>
+            <el-button type="primary" @click="save">确 定</el-button>
+          </div>
+        </el-dialog>
+
+    </div>
+</template>
+
+
+{% endverbatim a %}
+<script src="/static/vue.min.js"></script>
+<script src="/static/vuex.js"></script>
+<!--
+<script src="https://unpkg.com/element-ui/lib/index.js"></script>
+-->
+<script src="/static/index.js"></script>
+<script src="/static/axios.min.js"></script>
+    <!--
+<link rel="stylesheet" href="https://unpkg.com/element-ui/lib/theme-chalk/index.css"/>
+wget https://unpkg.com/element-ui/lib/theme-chalk/fonts/element-icons.woff
+-->
+<link rel="stylesheet" href="/static/index.css"/>
+
+<script>
+    var store = new Vuex.Store({
+      state: {
+        keywords: localStorage.getItem("keywords") || '',
+      },
+      mutations:{
+        set(state,info){
+          localStorage.setItem('keywords', info); //将传递的数据先保存到localStorage中
+        }
+      }
+    })
+
+    var vm = new Vue({
+        // 绑定对象
+        el:'#app',
+        data:{
+        },
+        methods:{
+        },
+        components: {
+            datatable: {
+                template: '#tmp1',
+                data() {
+                    return {
+                        tableData: [],
+                        keywords: this.$store.state.keywords,
+                        currentPage: 1,
+                        pageSize: 10,
+                        dialogFormVisible: false,
+                        dialogVisible: false,
+                        log: '',
+                        form: {
+                            config_name: '',
+                            config_content: '',
+                        },
+                        formLabelWidth: '25%',
+                        loading: false,
+                        webSocket: ''
+                    }
+                },
+                ready: function () {
+
+                },
+                methods: {
+                    searchData(keywords) {
+                        //处理分页显示
+                        let newList = this.search(keywords)
+                        let tableDataSlice = newList.slice(this.currentPage * this.pageSize - this.pageSize,
+                            this.currentPage * this.pageSize);
+                        if (tableDataSlice.length == 0){
+                            //当搜索栏为空自动切回第一页
+                            this.currentPage = 1
+                        }
+                        this.$store.commit('set',keywords)
+                        return tableDataSlice
+                    },
+                    search(keywords) {
+                        //数据搜索
+                        let newList = this.tableData.filter(item=>{
+                            if(item.config_name.includes(keywords)) {
+                                return true
+                            }
+                        });
+                        return newList
+                    },
+                    handleSizeChange(val) {
+                        //每页显示几行按钮
+                        this.pageSize = val
+                    },
+                    handleCurrentChange(val) {
+                        //跳转第几页按钮
+                        this.currentPage = val
+                    },
+                    handleClose(done) {
+                        //对话框关闭确认
+                        this.$confirm('确认关闭？')
+                          .then(_ => {
+                            done();
+                          })
+                          .catch(_ => {});
+                    },
+                    notify(code, msg){
+                        //消息提示
+                        if (code == 0){
+                            var title = '成功'
+                            var type = 'success'
+                        }else if (code == 1){
+                            var title = '错误'
+                            var type = 'error'
+                        }
+                        this.$notify({
+                          title: title,
+                          message: msg,
+                          type: type,
+                          offset: 37,
+                          showClose: false
+                        });
+                    },
+                    key_sort(column) {
+                        return function (obj1, obj2) {
+                            var val1 = obj1[column];
+                            var val2 = obj2[column];
+                            if (val1 < val2) {
+                                return -1;
+                            } else if (val1 > val2) {
+                                return 1;
+                            } else {
+                                return 0;
+                            }
+                        }
+                    },
+                    changeTableSort(column){
+                        //排序按钮
+                        localStorage.setItem('column', JSON.stringify(column));
+                        if (! column.order){
+                            this.tableData = JSON.parse(localStorage.getItem("tableData"))
+                        }else {
+
+                            if (column.order === 'ascending') {
+                                this.tableData = this.tableData.sort(this.key_sort(column.prop))
+                            } else if (column.order === 'descending') {
+                                this.tableData = this.tableData.sort(this.key_sort(column.prop)).reverse()
+                            }
+                        }
+                    },
+                    post_data(url, data) {
+                        //axios异步请求
+                        var _this = this;
+                        axios({
+                            method: 'POST',
+                            headers: {
+                                'X-CSRFtoken': '{{ csrf_token }}'
+                            },
+                            url: url,
+                            data: data
+                        })
+                        .then(function (response) {
+                            if (response.data.code == -1) {
+                                _this.tableData = response.data.tableData;
+                                if (data){
+                                    localStorage.setItem('tableData', JSON.stringify(_this.tableData))
+                                }
+                                _this.changeTableSort(JSON.parse(localStorage.getItem("column")))
+                            }
+                            if (response.data.code == 0) {
+                                _this.post_data('/task_schedule_config_data/',{});
+                                _this.notify(response.data.code, response.data.msg)
+                            }
+                            if (response.data.code == 1) {
+                                _this.notify(response.data.code, response.data.msg)
+                            }
+                            if (response.data.code == 10) {
+                                _this.post_data('/task_schedule_config_data/',{});
+                                {#_this.form.script_name = response.data.script_name;#}
+                                _this.form.config_content = response.data.config_content;
+                                _this.dialogFormVisible = true;
+                                _this.loading = false
+                            }
+                        })
+                            .catch(function (error) {
+                                _this.notify(1, error)
+                            })
+                    },
+                    ws(data) {
+                        // 创建Web Socket对象
+                        let _this = this;
+                        _this.log = '';
+                        _this.webSocket = new WebSocket("ws://192.168.120.251:8000/task_schedule_scripts_run/");
+                        // 当WebSocket建立网络连接时激发该函数
+                        _this.webSocket.onopen = function () {
+                            // 发送消息
+                            _this.webSocket.send(JSON.stringify(data));
+                            // 发送keepalive
+                            setInterval(function() {
+                                _this.webSocket.send(JSON.stringify({keepalive: 1}));
+                            },10000);
+                        };
+                        // 为onmessage事件绑定监听器，接收消息
+                        _this.webSocket.onmessage = function (event) {
+                            // 接收消息
+                            //if (pods_name == '') {
+                            //    _this.log += JSON.parse(event.data) + '\n';
+                            //}else{
+                                _this.log += JSON.parse(event.data);
+                            //}
+                        };
+                        _this.webSocket.onerror = function(e) {
+                            if(e){
+                                console.log(e.data)
+                            }
+                        };
+                        _this.webSocket.onclose = function(e) {
+                        };
+                    },
+                    handleAdd(index, row) {
+                        //编辑按钮
+                        this.form.config_name = '';
+                        this.form.config_content = '';
+                        this.dialogFormVisible = true
+                    },
+                    handleEdit(index, row) {
+                        //编辑按钮
+                        this.form.config_name = row.config_name;
+                        this.form.config_content = row.config_content;
+
+                        let data = {
+                            config_name: this.form.config_name,
+                            config_content: this.form.config_content,
+                        };
+                        this.loading = true;
+                        this.post_data('/task_schedule_config_edit/',data);
+
+                    },
+                    handleRun(index, row) {
+                        //运行按钮
+                        this.$confirm('确认运行？')
+                            .then(_ => {
+                                this.ws({
+                                    script_name: row.script_name,
+                                });
+                                this.dialogVisible = true
+                            })
+                            .catch(_ => {});
+                    },
+                    save() {
+                        //添加按钮
+                        let data = {
+                            config_name: this.form.config_name,
+                            config_content: this.form.config_content
+                        };
+                        this.post_data('/task_schedule_config_add/',data);
+                        this.dialogFormVisible = false
+                    }
+                },
+                created(){
+                    //数据函数加载完成后
+                    this.post_data('/task_schedule_config_data/',{})
+                },
+                mounted(){
+                    //网页完全显示后
+                    this.$refs.search_bar.focus()
+                    this.changeTableSort({prop: 'create_time', order: 'descending'});
+                },
+                store: store
+            }
+        }
+    })
+
+</script>
+
+
+
+{% endblock %}
