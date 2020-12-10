@@ -681,6 +681,9 @@ def task_schedule_scripts_add(request):
         # 过滤危险的rm命令
         if 'rm ' in script_content:
             return HttpResponse(json.dumps({'code': 1, 'msg': '有危险命令'}), content_type="application/json")
+        # 限制k8s_user账号所使用的标签
+        if request.user.username == 'k8s_user' and not 'spark.kubernetes.node.selector.task=temp01' in script_content:
+            return HttpResponse(json.dumps({'code': 1, 'msg': '标签选择器配置错误'}), content_type="application/json")
         # 本地写缓存文件
         with open('/tmp/tempfile', 'w') as f:
             f.write(script_content)
