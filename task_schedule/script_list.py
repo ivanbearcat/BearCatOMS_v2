@@ -53,6 +53,22 @@ def fetch_config():
             data_dict['config_name'] = i
             data_list.append(data_dict)
     print(data_list)
+
+def fetch_tasks():
+    # 获取任务
+    # 增加k8s的环境变量，不然无法使用kubectl命令
+    os.environ['KUBECONFIG'] = '/etc/kubernetes/admin.conf'
+    # 获取k8s正在运行的任务名和已运行时间
+    p = subprocess.Popen('''kubectl get pod|grep Running|awk '{print $1" "$5}' ''', shell=True, stdout=subprocess.PIPE)
+    p.wait()
+    items, _ = p.communicate()
+    for i in items.strip().split('\n'):
+        # 获取结尾的文件
+        data_dict = {}
+        data_dict['task_name'] = i.split()[0]
+        data_dict['task_time'] = i.split()[1]
+        data_list.append(data_dict)
+    print(data_list)
                 
 
 if __name__ == '__main__':
@@ -61,5 +77,7 @@ if __name__ == '__main__':
             fetch_script()
         if sys.argv[1] == 'config':
             fetch_config()
+        if sys.argv[1] == 'tasks':
+            fetch_tasks()
     else:
         print('no args')

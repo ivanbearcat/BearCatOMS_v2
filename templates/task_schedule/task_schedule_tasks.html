@@ -61,6 +61,7 @@
             <el-button
               size="mini"
               type="primary"
+              :disabled="has_sparkui(scope.row)"
               @click="handleUI(scope.$index, scope.row)">SparkUI</el-button>
           </template>
         </el-table-column>
@@ -293,19 +294,17 @@ wget https://unpkg.com/element-ui/lib/theme-chalk/fonts/element-icons.woff
                             }
                             if (response.data.code == 0) {
                                 _this.post_data('/task_schedule_tasks_data/',{});
-                                _this.notify(response.data.code, response.data.msg)
+                                _this.notify(response.data.code, response.data.msg);
                                 _this.loading = false
                             }
                             if (response.data.code == 1) {
-                                _this.notify(response.data.code, response.data.msg)
+                                _this.notify(response.data.code, response.data.msg);
                                 _this.loading = false
                             }
                             if (response.data.code == 10) {
-                                _this.post_data('/task_schedule_tasks_data/',{});
-                                {#_this.form.script_name = response.data.script_name;#}
-                                _this.form.script_content = response.data.script_content;
-                                _this.dialogFormVisible = true;
+                                _this.notify(response.data.code, response.data.msg);
                                 _this.loading = false
+                                window.open("http://192.168.120.251:4040");
                             }
                         })
                             .catch(function (error) {
@@ -367,10 +366,10 @@ wget https://unpkg.com/element-ui/lib/theme-chalk/fonts/element-icons.woff
                     },
                     handleUI(index, row) {
                         //SparkUI按钮
-                        this.ws({
-                            task_name: row.task_name,
-                        });
-                        this.dialogVisible = true
+                        let data = {
+                            task_name: row.task_name
+                        };
+                        this.post_data('/task_schedule_task_sparkui/',data);
                     },
                     save() {
                         //添加按钮
@@ -391,6 +390,13 @@ wget https://unpkg.com/element-ui/lib/theme-chalk/fonts/element-icons.woff
                           .catch(_ => {});
 
                     },
+                    has_sparkui(row){
+                        if (row.task_name.search('driver') == '-1'){
+                            return true
+                        }else{
+                            return false
+                        }
+                    }
                 },
                 created(){
                     //数据函数加载完成后

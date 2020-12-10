@@ -6,16 +6,11 @@ from task_schedule.models import single_tasks, task_group
 import json
 import subprocess
 import time
-import datetime
 import threading
-import os
-import signal
 from dwebsocket import require_websocket
 import re
-from task_schedule.apps import type_dict,k8s_host, k8s_port
-from commons.socket_send_data import tunnel_send
+from task_schedule.apps import type_dict,k8s_host, k8s_port, ssh_server
 from task_schedule import tasks
-from ast import literal_eval
 from celery.task.control import revoke
 from django_celery_beat.models import PeriodicTask, CrontabSchedule
 from django.db.models import Q
@@ -905,3 +900,19 @@ def task_schedule_task_log(request):
         line = p.stdout.readline().decode()
         if line:
             request.websocket.send(json.dumps(line))
+
+
+
+@login_required
+def task_schedule_task_sparkui(request):
+    # 通过SSH隧道开启本地sparkui监听
+    data = json.loads(request.body)
+    task_name = data.get('task_name')
+    # 清理并打开远程sparkui
+    subprocess.Popen(
+        f'''ssh {k8s_host} -p {k8s_port} "export KUBECONFIG=/etc/kubernetes/admin.conf; \
+            ps aux|grep port-forward|grep -v grep|awk '{{print \$2}}'|xargs kill; \
+            /usr/bin/kubectl port-forward {task_name} 4040:4040" ''',
+        shell=True, stdout=subprocess.PIPE)
+    time.sleep(2)
+    return HttpResponse(json.dumps({'code': 10, 'msg': '开启成功'}), content_type="application/json")

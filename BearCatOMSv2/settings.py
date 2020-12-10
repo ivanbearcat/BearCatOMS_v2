@@ -57,6 +57,7 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
+    'task_schedule.apps.k8s_user_perm_middleware'
 ]
 # 'middelware.ip_filter.OverTime',
 
