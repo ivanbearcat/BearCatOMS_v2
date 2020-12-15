@@ -333,6 +333,9 @@ wget https://unpkg.com/element-ui/lib/theme-chalk/fonts/element-icons.woff
                             //}else{
                                 _this.log += JSON.parse(event.data);
                                 const textarea = document.getElementById('log_textarea');
+                                setTimeout(function() {
+                                    textarea.scrollTop = textarea.scrollHeight;
+                                },300);
                                 textarea.scrollTop = textarea.scrollHeight;
                             //}
                         };
@@ -406,6 +409,10 @@ wget https://unpkg.com/element-ui/lib/theme-chalk/fonts/element-icons.woff
                     //网页完全显示后
                     this.$refs.search_bar.focus()
                     this.changeTableSort({prop: 'task_name', order: 'ascending'});
+                    {#let _this = this;#}
+                    {#setInterval(function() {#}
+                    {#    _this.post_data('/task_schedule_tasks_data/',{})#}
+                    {#},5000);#}
                 },
                 store: store
             }

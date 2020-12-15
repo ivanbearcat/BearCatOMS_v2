@@ -16,10 +16,10 @@ from django_celery_beat.models import PeriodicTask, CrontabSchedule
 from django.db.models import Q
 from BearCatOMSv2.settings import TIME_ZONE
 from commons.ssh_commons import ssh_exec
+from commons.timer import timer
 from ast import literal_eval
 from threading import Thread
 import sys
-
 
 
 
@@ -898,11 +898,27 @@ def task_schedule_task_log(request):
 
     t = Thread(target=recive_data, args=(request, p))
     t.start()
+    # 初始化计时器
+    my_timer = timer(0.5)
     # 持续获取日志输出，通过websocket发送到前端
+    data = ''
+    # 开始计时
+    my_timer.time_start()
     while p.poll() == None:
         line = p.stdout.readline().decode()
         if line:
-            request.websocket.send(json.dumps(line))
+            data += line
+            # 判断计时器到1秒
+            if my_timer.is_ready():
+                request.websocket.send(json.dumps(data))
+                data = ''
+                my_timer.time_start()
+        else:
+            if my_timer.is_ready():
+                request.websocket.send(json.dumps(data))
+                data = ''
+                my_timer.time_start()
+
 
 
 
