@@ -856,7 +856,9 @@ def task_schedule_tasks(request):
 
 @login_required
 def task_schedule_tasks_data(request):
-    result = literal_eval(ssh_exec(k8s_host, k8s_port ,'python /work/spark_scripts/tasks/script_list.py tasks'))
+    data = json.loads(request.body)
+    radio = data.get('radio')
+    result = literal_eval(ssh_exec(k8s_host, k8s_port ,f'python /work/spark_scripts/tasks/script_list.py tasks {radio}'))
     return HttpResponse(json.dumps({'code': -1, 'tableData': result}), content_type='application/json;charset = utf-8')
 
 

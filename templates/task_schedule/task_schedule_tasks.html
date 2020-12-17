@@ -20,6 +20,11 @@
 <template id="tmp1">
     <div>
     <!-- 数据表 -->
+      <el-radio-group @change="radioChange" v-model="radio">
+          <el-radio label="Running"></el-radio>
+          <el-radio label="Completed"></el-radio>
+          <el-radio label="Error"></el-radio>
+      </el-radio-group>
       <el-col :span="4" :offset="20"><el-input
           clearable
           v-model="keywords"
@@ -185,7 +190,8 @@ wget https://unpkg.com/element-ui/lib/theme-chalk/fonts/element-icons.woff
                         },
                         formLabelWidth: '25%',
                         loading: false,
-                        webSocket: ''
+                        webSocket: '',
+                        radio: 'Running'
                     }
                 },
                 ready: function () {
@@ -293,7 +299,7 @@ wget https://unpkg.com/element-ui/lib/theme-chalk/fonts/element-icons.woff
                                 _this.changeTableSort(JSON.parse(localStorage.getItem("column")))
                             }
                             if (response.data.code == 0) {
-                                _this.post_data('/task_schedule_tasks_data/',{});
+                                _this.post_data('/task_schedule_tasks_data/',{'radio': _this.radio});
                                 _this.notify(response.data.code, response.data.msg);
                                 _this.loading = false
                             }
@@ -399,11 +405,14 @@ wget https://unpkg.com/element-ui/lib/theme-chalk/fonts/element-icons.woff
                         }else{
                             return false
                         }
+                    },
+                    radioChange(val){
+                        this.post_data('/task_schedule_tasks_data/',{'radio': val})
                     }
                 },
                 created(){
                     //数据函数加载完成后
-                    this.post_data('/task_schedule_tasks_data/',{})
+                    this.post_data('/task_schedule_tasks_data/',{'radio': this.radio})
                 },
                 mounted(){
                     //网页完全显示后
