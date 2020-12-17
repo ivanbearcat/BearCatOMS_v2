@@ -901,11 +901,12 @@ def task_schedule_task_log(request):
     t = Thread(target=recive_data, args=(request, p))
     t.start()
     # 初始化计时器
-    my_timer = timer(0.5)
+    my_timer = timer(0.4)
     # 持续获取日志输出，通过websocket发送到前端
     data = ''
     # 开始计时
     my_timer.time_start()
+
     while p.poll() == None:
         line = p.stdout.readline().decode()
         if line:
@@ -920,6 +921,7 @@ def task_schedule_task_log(request):
                 request.websocket.send(json.dumps(data))
                 data = ''
                 my_timer.time_start()
+        time.sleep(0.05)
 
 
 
