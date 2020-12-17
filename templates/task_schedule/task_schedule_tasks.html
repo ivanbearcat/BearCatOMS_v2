@@ -48,7 +48,7 @@
         <el-table-column
           min-width="20"
           sortable
-          label="已运行时间"
+          label="已运行时间(秒)"
           prop="task_time">
         </el-table-column>
         <el-table-column
@@ -417,7 +417,7 @@ wget https://unpkg.com/element-ui/lib/theme-chalk/fonts/element-icons.woff
                 mounted(){
                     //网页完全显示后
                     this.$refs.search_bar.focus()
-                    this.changeTableSort({prop: 'task_name', order: 'ascending'});
+                    this.changeTableSort({prop: 'task_time', order: 'ascending'});
                     {#let _this = this;#}
                     {#setInterval(function() {#}
                     {#    _this.post_data('/task_schedule_tasks_data/',{})#}
