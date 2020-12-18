@@ -117,6 +117,7 @@
                 <el-form-item label="" :label-width="10">
                     <el-col :span="24">
                         <el-input
+                          id="log_textarea"
                           resize="none"
                           rows="24"
                           type="textarea"
@@ -333,6 +334,11 @@ wget https://unpkg.com/element-ui/lib/theme-chalk/fonts/element-icons.woff
                             //    _this.log += JSON.parse(event.data) + '\n';
                             //}else{
                                 _this.log += JSON.parse(event.data);
+                                const textarea = document.getElementById('log_textarea');
+                                setTimeout(function() {
+                                    textarea.scrollTop = textarea.scrollHeight;
+                                },100);
+                                textarea.scrollTop = textarea.scrollHeight;
                             //}
                         };
                         _this.webSocket.onerror = function(e) {

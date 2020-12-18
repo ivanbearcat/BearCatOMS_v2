@@ -728,7 +728,7 @@ def task_schedule_scripts_run(request):
     def recive_data(request, p):
         i = 0
         while 1:
-            if i > 300: sys.exit(1)
+            if i > 86400: sys.exit(1)
             data = request.websocket.wait()
             data = json.loads(data)
             if data.get('status') == 'stop':
@@ -921,8 +921,7 @@ def task_schedule_task_log(request):
                 request.websocket.send(json.dumps(data))
                 data = ''
                 my_timer.time_start()
-        time.sleep(0.05)
-
+        time.sleep(0.005)
 
 
 
@@ -939,3 +938,23 @@ def task_schedule_task_sparkui(request):
         shell=True, stdout=subprocess.PIPE)
     time.sleep(2)
     return HttpResponse(json.dumps({'code': 10, 'msg': '开启成功'}), content_type="application/json")
+
+
+
+@login_required
+def task_schedule_task_download(request):
+    # 日志下载
+    data = json.loads(request.body)
+    task_name = data.get('task_name')
+    # 保存日志到本地缓存
+    p = subprocess.Popen(
+        f'ssh {k8s_host} -p {k8s_port} "export KUBECONFIG=/etc/kubernetes/admin.conf; /usr/bin/kubectl logs {task_name}"',
+        shell=True, stdout=subprocess.PIPE)
+    try:
+        p.wait(timeout=5)
+    except subprocess.TimeoutExpired:
+        return HttpResponse(json.dumps({'code': 1, 'msg': '日志过大无法下载'}), content_type="application/json")
+    logs = p.stdout.read().decode()
+    with open('/usr/share/nginx/BearCatOMS_v2/static/logstempfile.txt', 'w') as f:
+        f.write(logs)
+    return HttpResponse(json.dumps({'code': 11, 'msg': '成功'}), content_type="application/json")

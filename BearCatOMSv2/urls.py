@@ -94,6 +94,7 @@ urlpatterns = [
     url(r'^task_schedule_task_stop/', task_schedule_task_stop),
     url(r'^task_schedule_task_log/', task_schedule_task_log),
     url(r'^task_schedule_task_sparkui/', task_schedule_task_sparkui),
+    url(r'^task_schedule_task_download/', task_schedule_task_download),
     url(r'^ansiable_playbook/', ansiable_playbook),
     url(r'^ansiable_playbook_data/', ansiable_playbook_data),
     url(r'^ansiable_playbook_run/', ansiable_playbook_run),

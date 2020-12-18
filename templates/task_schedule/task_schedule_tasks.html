@@ -68,6 +68,10 @@
               type="primary"
               :disabled="has_sparkui(scope.row)"
               @click="handleUI(scope.$index, scope.row)">SparkUI</el-button>
+            <el-button
+              size="mini"
+              type="success"
+              @click="handleDownload(scope.$index, scope.row)">下载日志</el-button>
           </template>
         </el-table-column>
       </el-table>
@@ -309,8 +313,13 @@ wget https://unpkg.com/element-ui/lib/theme-chalk/fonts/element-icons.woff
                             }
                             if (response.data.code == 10) {
                                 _this.notify(response.data.code, response.data.msg);
-                                _this.loading = false
+                                _this.loading = false;
                                 window.open("http://192.168.120.251:4040");
+                            }
+                            if (response.data.code == 11) {
+                                _this.notify(response.data.code, response.data.msg);
+                                _this.loading = false;
+                                window.open("/static/logstempfile.txt")
                             }
                         })
                             .catch(function (error) {
@@ -379,6 +388,13 @@ wget https://unpkg.com/element-ui/lib/theme-chalk/fonts/element-icons.woff
                             task_name: row.task_name
                         };
                         this.post_data('/task_schedule_task_sparkui/',data);
+                    },
+                    handleDownload(index, row) {
+                        //日志下载
+                        let data = {
+                            task_name: row.task_name
+                        };
+                        this.post_data('/task_schedule_task_download/',data);
                     },
                     save() {
                         //添加按钮
