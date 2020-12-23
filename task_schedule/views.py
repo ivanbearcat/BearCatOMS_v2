@@ -946,15 +946,14 @@ def task_schedule_task_download(request):
     # 日志下载
     data = json.loads(request.body)
     task_name = data.get('task_name')
-    # 保存日志到本地缓存
-    p = subprocess.Popen(
-        f'ssh {k8s_host} -p {k8s_port} "export KUBECONFIG=/etc/kubernetes/admin.conf; /usr/bin/kubectl logs {task_name}"',
-        shell=True, stdout=subprocess.PIPE)
-    try:
-        p.wait(timeout=5)
-    except subprocess.TimeoutExpired:
-        return HttpResponse(json.dumps({'code': 1, 'msg': '日志过大无法下载'}), content_type="application/json")
-    logs = p.stdout.read().decode()
-    with open('/usr/share/nginx/BearCatOMS_v2/static/logstempfile.txt', 'w') as f:
-        f.write(logs)
+    # 日志保存到远程本地缓存
+    code = subprocess.call(f'ssh {k8s_host} -p {k8s_port} "export KUBECONFIG=/etc/kubernetes/admin.conf; \
+                           /usr/bin/kubectl logs {task_name} > /tmp/logstempfile.txt"', shell=True)
+    if code != 0:
+        return HttpResponse(json.dumps({'code': 1, 'msg': '日志文件转储失败'}), content_type="application/json")
+    # 日志传输至本地缓存
+    code = subprocess.call(f'scp -P {k8s_port} {k8s_host}:/tmp/logstempfile.txt \
+                           /usr/share/nginx/BearCatOMS_v2/static/logstempfile.txt', shell=True)
+    if code != 0:
+        return HttpResponse(json.dumps({'code': 1, 'msg': '日志文件传输失败'}), content_type="application/json")
     return HttpResponse(json.dumps({'code': 11, 'msg': '成功'}), content_type="application/json")
