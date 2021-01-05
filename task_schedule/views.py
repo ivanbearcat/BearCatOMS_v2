@@ -892,11 +892,12 @@ def task_schedule_task_log(request):
             if i > 300:
                 sys.exit(1)
             data = request.websocket.wait()
-            data = json.loads(data)
-            if data.get('status') == 'stop':
-                p.kill()
-                sys.exit(0)
-            time.sleep(1)
+            if data:
+                data = json.loads(data)
+                if data.get('status') == 'stop':
+                    p.kill()
+                    sys.exit(0)
+                time.sleep(1)
 
     t = Thread(target=recive_data, args=(request, p))
     t.start()
@@ -904,24 +905,22 @@ def task_schedule_task_log(request):
     my_timer = timer(0.4)
     # 持续获取日志输出，通过websocket发送到前端
     data = ''
-    # 开始计时
-    my_timer.time_start()
-
-    while p.poll() == None:
+    # 第一行标记
+    is_first_line = 1
+    # 当命令未完成或者数据没读完时，持续获取并发送数据
+    while p.poll() == None or line != None:
         line = p.stdout.readline().decode()
-        if line:
-            data += line
-            # 判断计时器到1秒
-            if my_timer.is_ready():
-                request.websocket.send(json.dumps(data))
-                data = ''
-                my_timer.time_start()
-        else:
-            if my_timer.is_ready():
-                request.websocket.send(json.dumps(data))
-                data = ''
-                my_timer.time_start()
-        time.sleep(0.005)
+        # 判断是否第一行，第一行开始计时
+        if is_first_line == 1:
+            my_timer.time_start()
+            is_first_line = 0
+        data += line
+        # 判断计时器到预设时间
+        if my_timer.is_ready():
+            request.websocket.send(json.dumps(data))
+            data = ''
+            my_timer.time_start()
+        time.sleep(0.004)
 
 
 
