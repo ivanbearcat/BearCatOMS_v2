@@ -20,6 +20,8 @@ from commons.timer import timer
 from ast import literal_eval
 from threading import Thread
 import sys
+import fcntl
+import os
 
 
 
@@ -909,7 +911,13 @@ def task_schedule_task_log(request):
     is_first_line = 1
     # 当命令未完成或者数据没读完时，持续获取并发送数据
     while p.poll() == None or line != None:
-        line = p.stdout.readline().decode()
+        # 设置文件句柄为非阻塞
+        fcntl.fcntl(p.stdout.fileno(), fcntl.F_SETFL, os.O_NONBLOCK)
+        try:
+            line = p.stdout.readline().decode()
+        except IOError:
+            time.sleep(1)
+            continue
         # 判断是否第一行，第一行开始计时
         if is_first_line == 1:
             my_timer.time_start()
@@ -917,9 +925,10 @@ def task_schedule_task_log(request):
         data += line
         # 判断计时器到预设时间
         if my_timer.is_ready():
-            request.websocket.send(json.dumps(data))
-            data = ''
-            my_timer.time_start()
+            if data:
+                request.websocket.send(json.dumps(data))
+                data = ''
+                my_timer.time_start()
         time.sleep(0.004)
 
 
