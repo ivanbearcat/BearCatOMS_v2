@@ -42,11 +42,15 @@ INSTALLED_APPS = [
     'django_extensions',
     'django_celery_beat',
     'django_celery_results',
+    'xadmin',
+    'crispy_forms',
+    'reversion',
     'server_info',
     'operation',
     'audit',
     'task_schedule',
-    'ansiable'
+    'ansiable',
+    'CMDB'
 ]
 
 MIDDLEWARE = [
@@ -119,7 +123,7 @@ AUTH_PASSWORD_VALIDATORS = [
 # Internationalization
 # https://docs.djangoproject.com/en/2.0/topics/i18n/
 
-LANGUAGE_CODE = 'en-us'
+LANGUAGE_CODE = 'zh-hans'
 
 TIME_ZONE = 'Asia/Shanghai'
 
@@ -132,7 +136,7 @@ USE_TZ = False
 
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/2.0/howto/static-files/
-
+# STATIC_ROOT = '/static_xadmin/'
 STATIC_URL = '/static/'
 STATICFILES_DIRS = [
     os.path.join(BASE_DIR, 'static'), 

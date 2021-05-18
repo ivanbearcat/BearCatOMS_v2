@@ -1,0 +1,112 @@
+++ id -u
++ myuid=0
+++ id -g
++ mygid=0
+++ getent passwd 0
++ uidentry=root:x:0:0:root:/root:/bin/ash
++ echo '192.168.75.20 master20'
++ echo '192.168.75.21 slave21'
++ echo '192.168.75.22 slave22'
++ echo '192.168.75.23 slave23'
++ echo '192.168.75.24 slave24'
++ echo '192.168.75.37 slave37'
++ echo '192.168.75.38 slave38'
++ echo '192.168.75.13 slave13'
++ echo '192.168.75.78 slave78'
++ echo '192.168.75.224 Kafka-01'
++ echo '192.168.70.232 Kafka-game-01'
++ export LD_LIBRARY_PATH=:/usr/local/hadoop-2.7/lib/native/
++ LD_LIBRARY_PATH=:/usr/local/hadoop-2.7/lib/native/
++ '[' -z root:x:0:0:root:/root:/bin/ash ']'
++ SPARK_K8S_CMD=driver
++ '[' -z driver ']'
++ shift 1
++ SPARK_CLASSPATH=':/opt/spark/jars/*'
++ env
++ grep SPARK_JAVA_OPT_
++ + sed 's/[^=]*=\(.*\)/\1/g'
+sort -t_ -k4 -n
++ readarray -t SPARK_JAVA_OPTS
++ '[' -n /var/spark-data/spark-jars/anchorLiveSchedule_k8-jar-with-dependencies.jar:/var/spark-data/spark-jars/anchorLiveSchedule_k8-jar-with-dependencies.jar ']'
++ SPARK_CLASSPATH=':/opt/spark/jars/*:/var/spark-data/spark-jars/anchorLiveSchedule_k8-jar-with-dependencies.jar:/var/spark-data/spark-jars/anchorLiveSchedule_k8-jar-with-dependencies.jar'
++ '[' -n /var/spark-data/spark-files ']'
++ cp -R /var/spark-data/spark-files/. .
++ case "$SPARK_K8S_CMD" in
++ CMD=(${JAVA_HOME}/bin/java "${SPARK_JAVA_OPTS[@]}" -cp "$SPARK_CLASSPATH" -Xms$SPARK_DRIVER_MEMORY -Xmx$SPARK_DRIVER_MEMORY -Dspark.driver.bindAddress=$SPARK_DRIVER_BIND_ADDRESS $SPARK_DRIVER_CLASS $SPARK_DRIVER_ARGS)
++ exec /sbin/tini -s -- /usr/lib/jvm/default-jvm/bin/java -Dspark.kubernetes.driverEnv.HADOOP_USER_NAME=hdfs -Dspark.driver.cores=4 -Dspark.submit.deployMode=cluster -Dspark.kubernetes.authenticate.driver.serviceAccountName=spark -Dspark.kubernetes.executor.memoryOverhead=2g -Dspark.executor.extraJavaOptions=-XX:+UseG1GC -Dspark.jars=http://192.168.75.231/jar/anchorLiveSchedule_k8-jar-with-dependencies.jar,http://192.168.75.231/jar/anchorLiveSchedule_k8-jar-with-dependencies.jar -Dspark.app.id=spark-ad2ae3c7ae7a417ab2f5fccdd0689936 -Dspark.kubernetes.executor.limit.cores=8 -Dspark.executor.instances=6 -Dspark.kubernetes.container.image=registry.xiaohulu.com:5000/spark:v2.1 -Dspark.kubernetes.initContainer.configMapName=anchorlivescheddsp-60b93139c4e73e02800b78a16f8445db-init-config -Dspark.executor.memory=24G -Dspark.app.name=anchorlivescheddsp -Dspark.driver.memory=12G -Dspark.default.parallelism=450 -Dspark.driver.host=anchorlivescheddsp-60b93139c4e73e02800b78a16f8445db-driver-svc.spark-cluster.svc -Dspark.kubernetes.node.selector.task=duanshipin -Dspark.executorEnv.SPARK_USER=hdfs -Dspark.master=k8s://https://192.168.75.231:6443 -Dspark.kubernetes.driverEnv.SPARK_USER=hdfs -Dspark.kubernetes.namespace=spark-cluster -Dspark.kubernetes.driver.memoryOverhead=1g -Dspark.driver.blockManager.port=7079 -Dspark.kubernetes.executor.podNamePrefix=anchorlivescheddsp-60b93139c4e73e02800b78a16f8445db -Dspark.driver.port=7078 -Dspark.kubernetes.driver.pod.name=anchorlivescheddsp-60b93139c4e73e02800b78a16f8445db-driver -Dspark.kubernetes.driver.limit.cores=4 -Dspark.kubernetes.initContainer.configMapKey=spark-init.properties -Dspark.executorEnv.HADOOP_USER_NAME=hdfs -Dspark.executor.cores=6 -Dspark.files=http://192.168.75.231:80/conf/db_anchorLiveScheduleK8.properties -XX:+UseG1GC -cp ':/opt/spark/jars/*:/var/spark-data/spark-jars/anchorLiveSchedule_k8-jar-with-dependencies.jar:/var/spark-data/spark-jars/anchorLiveSchedule_k8-jar-with-dependencies.jar' -Xms12G -Xmx12G -Dspark.driver.bindAddress=10.244.24.11 com.xiaohulu.SparkAnchorScheduleRun_parquetV2 26 2000 20201218 true
+files ===== http://192.168.75.231:80/conf/db_anchorLiveScheduleK8.properties
+3
+5
+============#################mySqlIpR  192.168.75.19============================
+ifWriteTable = true
+application num = 1
+ApplicationsBean(id=spark-application-1608289370947, name=anchor_live_schedule)
+executors num = 6
+ExecutorBean(id=driver, isActive=true, maxMemory=7542197452, addTime=2020-12-18T11:02:51.916GMT)
+ExecutorBean(id=5, isActive=true, maxMemory=15273138585, addTime=2020-12-18T11:02:59.578GMT)
+ExecutorBean(id=4, isActive=true, maxMemory=15273138585, addTime=2020-12-18T11:02:59.570GMT)
+ExecutorBean(id=3, isActive=true, maxMemory=15273138585, addTime=2020-12-18T11:03:00.714GMT)
+ExecutorBean(id=2, isActive=true, maxMemory=15273138585, addTime=2020-12-18T11:02:59.579GMT)
+ExecutorBean(id=1, isActive=true, maxMemory=15273138585, addTime=2020-12-18T11:03:00.355GMT)
+allexecutors num = 6
+ExecutorBean(id=1, isActive=true, maxMemory=15273138585, addTime=2020-12-18T11:03:00.355GMT)
+ExecutorBean(id=2, isActive=true, maxMemory=15273138585, addTime=2020-12-18T11:02:59.579GMT)
+ExecutorBean(id=3, isActive=true, maxMemory=15273138585, addTime=2020-12-18T11:03:00.714GMT)
+ExecutorBean(id=4, isActive=true, maxMemory=15273138585, addTime=2020-12-18T11:02:59.570GMT)
+ExecutorBean(id=5, isActive=true, maxMemory=15273138585, addTime=2020-12-18T11:02:59.578GMT)
+ExecutorBean(id=driver, isActive=true, maxMemory=7542197452, addTime=2020-12-18T11:02:51.916GMT)
+updatetime = 2020-12-18 19:03:02
+platform_id = 26,,todayDate = 2020-12-18,,todayDateDatetime = 2020-12-18 00:00:00,,todayDateDatetimeTimestamp = 1608220800
+yesDate = 2020-12-17,,yesDateDatetime = 2020-12-17 00:00:00,,yesDateDatetimeTimestamp = 1608134400
+now times = 2020-12-18 19:03:02
+===============read data from mysql==================
+anchorLiveInfoDFSql = (select id, room_id, UNIX_TIMESTAMP(live_start_time) as live_start_time, if(live_last_time is null,UNIX_TIMESTAMP(now()),UNIX_TIMESTAMP(date_add(live_last_time, interval 30 minute))) as live_last_time , sourcegname ,DATE_FORMAT( live_start_time, '%Y-%m-%d' ) AS statistics_date  from anchor_live_schedule.anchor_live_info where platform_id=26  and status = 0 ) anchor_live_info_db 
+(select id, room_id, UNIX_TIMESTAMP(live_start_time) as live_start_time, if(live_last_time is null,UNIX_TIMESTAMP(now()),UNIX_TIMESTAMP(date_add(live_last_time, interval 30 minute))) as live_last_time , sourcegname ,DATE_FORMAT( live_start_time, '%Y-%m-%d' ) AS statistics_date  from anchor_live_schedule.anchor_live_info where platform_id=26  and status = 0 ) anchor_live_info_db 
+===============read gift id price for repair data==================
+giftPriceFixSql = (select platform_id,gift_id,gift_type,price from fix_data.gift_price_fix where platform_id = 26 ) gift_price_fix_tb 
+(select platform_id,gift_id,gift_type,price from fix_data.gift_price_fix where platform_id = 26 ) gift_price_fix_tb 
+=======今日直播主播开始和结束时间=======
+=======昨今日直播主播开始和结束时间=======
+anchorLiveInfoDF count = 12837 airTimeDF count = 12662,yesToTodayDF count = 11
+begin time = 13682 ms
+airtimeMap size = 12642
+air time = 3849 ms
+yesToTodayMap size = 11
+yes time = 1835 ms
+read live_show parquet gift =========
+read live_show parquet count = 4889465
+read stream parquet count = 4889465
+read live_show parquet message =========
+read live_show parquet count = 17698123
+read stream parquet count = 17698123
+#########################################airtime = 2020-12-18
+=============get msg data ===============
+=============get gift data ===============
+root
+ |-- id: string (nullable = true)
+ |-- room_id: string (nullable = true)
+ |-- content: integer (nullable = false)
+ |-- from_id: string (nullable = true)
+ |-- timestamp: long (nullable = false)
+
+root
+ |-- id: string (nullable = true)
+ |-- room_id: string (nullable = true)
+ |-- gift_price: double (nullable = false)
+ |-- from_id: string (nullable = true)
+ |-- gift_type: string (nullable = true)
+ |-- timestamp: long (nullable = false)
+ |-- gift_id: string (nullable = true)
+ |-- count: integer (nullable = false)
+
+=======场次相关数据======
+=============statistics air time gift info=================
+getGiftValueTimeLineRDD sql = select t.id, t.room_id, t.timestamp ,count(t.sender_num) as sender_count, sum(t.from_gift_price) as gift_price from  ( select id, room_id,timestamp ,1 as  sender_num, sum(gift_price) as from_gift_price from gift_value_time_line_table group by id,room_id,timestamp ,from_id )   t  group by  t.id,t.room_id, t.timestamp 
+=============statistics air time msg  info=================
+active audience count num==========
+getGiftValueTimeLineRDD sql = select t.id, t.room_id, t.timestamp ,count(t.sender_num) as sender_count, sum(t.from_content_num) as message_count from  ( select id , room_id,timestamp ,1 as  sender_num, count(content) as from_content_num  from msg_time_line_table group by id , room_id,timestamp ,from_id )   t  group by  t.id, t.room_id, t.timestamp 
+===============result=================
+=================save to mysql================
+写mysql==========
+driver :: port = 3306 , ip= 192.168.75.19 
+updatetime = 2020-12-18 19:03:02

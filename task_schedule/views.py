@@ -24,7 +24,6 @@ import fcntl
 import os
 
 
-
 @require_websocket
 def log_web_socket(request):
     message = request.websocket.wait()
@@ -935,13 +934,18 @@ def task_schedule_task_log(request):
 
 @login_required
 def task_schedule_task_sparkui(request):
+    # 启动隧道
+    ssh_server.start()
     # 通过SSH隧道开启本地sparkui监听
     data = json.loads(request.body)
     task_name = data.get('task_name')
+    # 检测SSH隧道是否可用,不可用重启
+    if not ssh_server.is_alive:
+        ssh_server.restart()
     # 清理并打开远程sparkui
     subprocess.Popen(
         f'''ssh {k8s_host} -p {k8s_port} "export KUBECONFIG=/etc/kubernetes/admin.conf; \
-            ps aux|grep port-forward|grep -v grep|awk '{{print \$2}}'|xargs kill; \
+            ps aux|grep port-forward|grep -v grep|awk '{{print \$2}}'|xargs kill -9; \
             /usr/bin/kubectl port-forward {task_name} 4040:4040" ''',
         shell=True, stdout=subprocess.PIPE)
     time.sleep(2)

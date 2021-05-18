@@ -1,7 +1,8 @@
 from django.apps import AppConfig
-from sshtunnel import SSHTunnelForwarder
 from django.utils.deprecation import MiddlewareMixin
 from django.shortcuts import render
+from sshtunnel import SSHTunnelForwarder
+
 
 type_dict = {
             'k8s-shell': {
@@ -21,11 +22,10 @@ type_dict = {
 k8s_host = '113.107.166.14'
 k8s_port = 15231
 # 建立SparkUI的SSH隧道
-ssh_server = SSHTunnelForwarder(('113.107.166.14', 15231),
+ssh_server = SSHTunnelForwarder((k8s_host, k8s_port),
                                 ssh_pkey="/root/.ssh/id_rsa",
                                 remote_bind_address=('127.0.0.1', 4040),
                                 local_bind_address=('0.0.0.0', 4040))
-ssh_server.start()
 
 class k8s_user_perm_middleware(MiddlewareMixin):
     def process_request(self, request):

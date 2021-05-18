@@ -13,8 +13,9 @@ Including another URLconf
     1. Import the include() function: from django.urls import include, path
     2. Add a URL to urlpatterns:  path('blog/', include('blog.urls'))
 """
-from django.contrib import admin
-from django.urls import path
+# from django.contrib import admin
+import xadmin
+from django.urls import path, include
 from django.conf.urls import url
 from login.views import *
 from home.views import *
@@ -27,9 +28,13 @@ from task_schedule.views import *
 from ansiable.views import *
 from gitlab_hook.views import *
 
+xadmin.autodiscover()
+from xadmin.plugins import xversion
+xversion.register_models()
 
 urlpatterns = [
-    path('admin/', admin.site.urls),
+    # path('admin/', admin.site.urls),
+    path(r'xadmin/', xadmin.site.urls),
     url(r'^$', login),
     url(r'^login_auth/', login_auth),
     url(r'^logout/', logout),
